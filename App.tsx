@@ -1,20 +1,42 @@
+/**
+ * Точка входа в приложение Looking
+ * Инициализирует авторизацию и запускает навигацию
+ */
+
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { useAuthStore } from './src/store/authStore';
+import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
+  const { loading, initialize } = useAuthStore();
+
+  useEffect(() => {
+    initialize();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6200ee" />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
+    <>
+      <AppNavigator />
       <StatusBar style="auto" />
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
   },
 });
