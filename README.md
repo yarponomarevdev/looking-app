@@ -4,7 +4,7 @@
 
 ## 📱 Основные функции MVP
 
-- ✅ Карта с Google Maps, показывающая активных стилистов в реальном времени
+- ✅ Карта с Яндекс.Картами (WebView), показывающая активных стилистов в реальном времени
 - ✅ Список всех доступных стилистов
 - ✅ Детальные профили стилистов с портфолио
 - ✅ Авторизация через email/password (Supabase Auth)
@@ -15,7 +15,7 @@
 - **Frontend**: React Native (Expo)
 - **Язык**: TypeScript
 - **Backend**: Supabase (PostgreSQL, Auth, Real-time)
-- **Карты**: Google Maps (react-native-maps)
+- **Карты**: Яндекс.Карты JavaScript API 2.1 (через WebView)
 - **Геолокация**: expo-location
 - **State Management**: Zustand
 - **Навигация**: React Navigation v6
@@ -29,7 +29,7 @@
 - npm или yarn
 - Expo Go приложение на телефоне (для тестирования)
 - Аккаунт Supabase (бесплатно)
-- Google Maps API ключ
+- Яндекс.Карты API ключ (опционально, есть демо-ключ)
 
 ### Установка
 
@@ -50,23 +50,7 @@ EXPO_PUBLIC_SUPABASE_URL=your-project-url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-4. **Настройте Google Maps API**
-
-- Получите ключ: https://console.cloud.google.com/
-- Включите Maps SDK for Android
-- Добавьте ключ в `app.json`:
-
-```json
-"android": {
-  "config": {
-    "googleMaps": {
-      "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
-    }
-  }
-}
-```
-
-5. **Запустите приложение**
+4. **Запустите приложение**
 
 ```bash
 npx expo start
@@ -79,11 +63,8 @@ npx expo start
 ```
 looking-app/
 ├── src/
-│   ├── components/
-│   │   └── map/
-│   │       └── StylistMarker.tsx      # Маркер стилиста на карте
 │   ├── screens/
-│   │   ├── MapScreen.tsx              # Главный экран с картой
+│   │   ├── MapScreen.tsx              # Главный экран с картой (WebView)
 │   │   ├── StylistListScreen.tsx      # Список стилистов
 │   │   ├── StylistDetailScreen.tsx    # Профиль стилиста
 │   │   ├── AuthScreen.tsx             # Авторизация
@@ -98,7 +79,7 @@ looking-app/
 │   └── navigation/
 │       └── AppNavigator.tsx           # Навигация
 ├── App.tsx                            # Точка входа
-├── app.json                           # Конфигурация Expo
+├── app.config.ts                      # Конфигурация Expo
 └── supabase-migration.sql             # SQL миграция для БД
 ```
 
@@ -183,7 +164,7 @@ APK будет в `android/app/build/outputs/apk/release/app-release.apk`
 ## 🐛 Известные проблемы
 
 - `.env` файл не читается автоматически - используйте `EXPO_PUBLIC_` префикс
-- Google Maps может не работать в Expo Go - используйте development build
+- Яндекс.Карты через WebView требуют интернет-соединения
 - Real-time требует включения Replication в Supabase
 
 ## 📄 Лицензия

@@ -39,55 +39,52 @@ EXPO_PUBLIC_SUPABASE_URL=https://ваш-проект.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 2. Настроить Яндекс.Карты API (3 минуты)
+### 2. Настроить Яндекс.Карты API (опционально)
 
-#### Получить ключ
+> **Примечание:** API ключ уже жестко закодирован в приложении для упрощения. 
+> Для production рекомендуется получить собственный ключ.
+
+#### Получить собственный ключ (опционально)
 1. Перейдите на https://developer.tech.yandex.ru/
 2. Войдите в аккаунт Яндекс или создайте новый
-3. Создайте новый ключ для **MapKit Mobile SDK**
+3. Создайте новый ключ для **JavaScript API и HTTP Геокодер**
 4. Скопируйте полученный API ключ
+5. Вставьте в `src/screens/MapScreen.tsx` (строка 92)
 
-#### Добавить в .env
-Откройте файл `.env` и добавьте:
-
-```env
-YANDEX_MAPS_API_KEY=ваш_api_ключ_яндекс_карт
-```
-
-📖 Подробная инструкция: [ENV_SETUP.md](./ENV_SETUP.md)
+📖 Подробная информация: [YANDEX_MAPS_WEBVIEW.md](./YANDEX_MAPS_WEBVIEW.md)
 
 ## Запуск приложения
 
-### ⚠️ ВАЖНО: Яндекс.Карты требуют Development Build
+### ✅ Работает в Expo Go!
 
-**Яндекс.Карты НЕ работают в Expo Go!** Необходимо собрать приложение с нативными модулями.
+**Яндекс.Карты через WebView работают в Expo Go** без необходимости сборки!
 
-### Вариант 1: Development Build на Android (Рекомендуется)
+### Запуск в Expo Go
 
 ```bash
 cd looking-app
-npx expo run:android
+npx expo start
 ```
 
-Это автоматически соберет и установит приложение на устройство/эмулятор.
+Затем:
+- Отсканируйте QR код в Expo Go (Android/iOS)
+- Или нажмите `a` для Android эмулятора
+- Или нажмите `i` для iOS симулятора
 
 **Требования:**
-- Android Studio установлена
-- Android SDK настроен
-- USB отладка включена на телефоне (или запущен эмулятор)
+- Expo Go установлен на устройстве (из Google Play / App Store)
+- Или Android/iOS эмулятор запущен
 
-📖 **Подробная инструкция по сборке:** [YANDEX_MAPS_BUILD.md](./YANDEX_MAPS_BUILD.md)
+### Production Build (для релиза)
 
-### Вариант 2: Через EAS Build (Облачная сборка)
+Для финальной сборки APK/IPA используйте EAS Build:
 
 ```bash
 npm install -g eas-cli
 eas login
 eas build:configure
-eas build --platform android --profile development
+eas build --platform android
 ```
-
-APK скачается автоматически после сборки.
 
 ## Проверка работы
 
@@ -151,8 +148,8 @@ npx expo start --clear
 - Перезапустите: `npx expo start -c`
 
 ### Карта не загружается
-- Проверьте Яндекс.Карты API ключ в `.env`
-- Убедитесь, что ключ активирован для MapKit Mobile SDK
+- Проверьте интернет-соединение (WebView требует подключения)
+- Убедитесь, что Яндекс.Карты API ключ корректен (в MapScreen.tsx)
 - Перезапустите Metro bundler: `npx expo start -c`
 
 ### Стилисты не отображаются

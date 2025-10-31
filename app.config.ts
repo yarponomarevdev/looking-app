@@ -1,46 +1,9 @@
 /**
- * Конфигурация Expo с настройкой Яндекс.Карт
- * Включает config plugin для правильной инициализации на iOS
+ * Конфигурация Expo
+ * Настройки приложения для iOS, Android и Web
  */
 
 import { ExpoConfig, ConfigContext } from '@expo/config';
-import { withAppDelegate, ConfigPlugin } from 'expo/config-plugins';
-
-// Config plugin для интеграции Яндекс.Карт на iOS
-const withYandexMaps: ConfigPlugin = (config) => {
-  return withAppDelegate(config, async (config) => {
-    const appDelegate = config.modResults;
-
-    // Добавляем импорт YandexMapsMobile
-    if (!appDelegate.contents.includes('#import <YandexMapsMobile/YMKMapKitFactory.h>')) {
-      appDelegate.contents = appDelegate.contents.replace(
-        /#import "AppDelegate.h"/g,
-        `#import "AppDelegate.h"\n#import <YandexMapsMobile/YMKMapKitFactory.h>`
-      );
-    }
-
-    // Получаем API ключ из переменных окружения
-    const mapKitApiKey = process.env.YANDEX_MAPS_API_KEY || 'YOUR_YANDEX_MAPS_API_KEY';
-
-    const mapKitMethodInvocations = [
-      `[YMKMapKit setApiKey:@"${mapKitApiKey}"];`,
-      `[YMKMapKit setLocale:@"ru_RU"];`,
-      `[YMKMapKit mapKit];`,
-    ]
-      .map((line) => `\t${line}`)
-      .join('\n');
-
-    // Добавляем инициализацию в didFinishLaunchingWithOptions
-    if (!appDelegate.contents.includes(mapKitMethodInvocations)) {
-      appDelegate.contents = appDelegate.contents.replace(
-        /\s+return YES;/g,
-        `\n\n${mapKitMethodInvocations}\n\n\treturn YES;`
-      );
-    }
-
-    return config;
-  });
-};
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -83,10 +46,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         locationAlwaysAndWhenInUsePermission: 'Приложению нужен доступ к геолокации для отображения стилистов рядом с вами.',
       },
     ],
-    withYandexMaps, // Config plugin для Яндекс.Карт
   ],
-  extra: {
-    mapKitApiKey: process.env.YANDEX_MAPS_API_KEY || 'YOUR_YANDEX_MAPS_API_KEY',
-  },
 });
 
