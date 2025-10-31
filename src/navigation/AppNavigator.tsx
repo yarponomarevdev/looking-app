@@ -10,7 +10,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuthStore } from '../store/authStore';
 
-import MapScreen from '../screens/MapScreen';
+import MapScreenWebView from '../screens/MapScreenWebView';
 import StylistListScreen from '../screens/StylistListScreen';
 import StylistDetailScreen from '../screens/StylistDetailScreen';
 import AuthScreen from '../screens/AuthScreen';
@@ -29,7 +29,7 @@ function MainTabs() {
     >
       <Tab.Screen 
         name="Map" 
-        component={MapScreen} 
+        component={MapScreenWebView} 
         options={{ 
           title: 'Карта',
           headerShown: false,

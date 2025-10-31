@@ -8,7 +8,7 @@
 - ✅ Все экраны реализованы
 - ✅ Навигация настроена
 - ✅ Авторизация через Supabase
-- ✅ Карта с Google Maps
+- ✅ Карта с Яндекс.Картами
 - ✅ Real-time обновления
 
 ## Что нужно сделать перед запуском
@@ -31,52 +31,63 @@
    - Project URL
    - anon public key
 
-#### Создать .env файл
-Создайте файл `.env` в папке `looking-app/`:
+#### Настроить переменные окружения
+Откройте файл `.env` в папке `looking-app/` и добавьте:
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=https://ваш-проект.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 2. Настроить Google Maps API (3 минуты)
+### 2. Настроить Яндекс.Карты API (3 минуты)
 
 #### Получить ключ
-1. https://console.cloud.google.com/
-2. Создать проект
-3. Включить **Maps SDK for Android**
-4. **APIs & Services** → **Credentials** → **Create API Key**
+1. Перейдите на https://developer.tech.yandex.ru/
+2. Войдите в аккаунт Яндекс или создайте новый
+3. Создайте новый ключ для **MapKit Mobile SDK**
+4. Скопируйте полученный API ключ
 
-#### Добавить в app.json
-Откройте `app.json` и замените:
+#### Добавить в .env
+Откройте файл `.env` и добавьте:
 
-```json
-"googleMaps": {
-  "apiKey": "AIzaSy..."  // Ваш настоящий ключ
-}
+```env
+YANDEX_MAPS_API_KEY=ваш_api_ключ_яндекс_карт
 ```
+
+📖 Подробная инструкция: [ENV_SETUP.md](./ENV_SETUP.md)
 
 ## Запуск приложения
 
-### Вариант 1: На реальном телефоне (рекомендуется)
+### ⚠️ ВАЖНО: Яндекс.Карты требуют Development Build
 
-```bash
-cd looking-app
-npx expo start
-```
+**Яндекс.Карты НЕ работают в Expo Go!** Необходимо собрать приложение с нативными модулями.
 
-1. Установите **Expo Go** на телефон:
-   - Android: https://play.google.com/store/apps/details?id=host.exp.exponent
-2. Отсканируйте QR код из терминала
-
-### Вариант 2: На Android эмуляторе
+### Вариант 1: Development Build на Android (Рекомендуется)
 
 ```bash
 cd looking-app
 npx expo run:android
 ```
 
-(Требуется Android Studio с настроенным AVD)
+Это автоматически соберет и установит приложение на устройство/эмулятор.
+
+**Требования:**
+- Android Studio установлена
+- Android SDK настроен
+- USB отладка включена на телефоне (или запущен эмулятор)
+
+📖 **Подробная инструкция по сборке:** [YANDEX_MAPS_BUILD.md](./YANDEX_MAPS_BUILD.md)
+
+### Вариант 2: Через EAS Build (Облачная сборка)
+
+```bash
+npm install -g eas-cli
+eas login
+eas build:configure
+eas build --platform android --profile development
+```
+
+APK скачается автоматически после сборки.
 
 ## Проверка работы
 
@@ -140,9 +151,9 @@ npx expo start --clear
 - Перезапустите: `npx expo start -c`
 
 ### Карта не загружается
-- Проверьте Google Maps API ключ в `app.json`
-- Убедитесь, что Maps SDK for Android включен
-- В Expo Go карты могут работать некорректно - используйте development build
+- Проверьте Яндекс.Карты API ключ в `.env`
+- Убедитесь, что ключ активирован для MapKit Mobile SDK
+- Перезапустите Metro bundler: `npx expo start -c`
 
 ### Стилисты не отображаются
 - Проверьте, что миграция выполнена

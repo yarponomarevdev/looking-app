@@ -1,12 +1,21 @@
 /**
- * Компонент маркера стилиста на карте
- * Отображает информацию при клике на маркер в виде Callout
+ * Компонент маркера стилиста на Яндекс.Карте
+ * Отображает кастомный маркер с аватаром и статусом стилиста
+ * Поддерживает клик для перехода к детальной информации
  */
 
 import React from 'react';
-import { Marker, Callout } from 'react-native-maps';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { Stylist } from '../../types';
+
+// Безопасный импорт Marker из Яндекс.Карт
+let Marker: any = null;
+try {
+  const yamap = require('react-native-yamap');
+  Marker = yamap.Marker;
+} catch (error) {
+  // Marker недоступен в Expo Go
+}
 
 interface StylistMarkerProps {
   stylist: Stylist;
@@ -14,65 +23,92 @@ interface StylistMarkerProps {
 }
 
 export default function StylistMarker({ stylist, onPress }: StylistMarkerProps) {
-  const pinColor = stylist.status === 'available' ? '#4CAF50' : '#FFA726';
+  // Цвет индикатора статуса
+  const statusColor = stylist.status === 'available' ? '#4CAF50' : '#FFA726';
+  
+  // Если Marker недоступен, возвращаем null
+  if (!Marker) {
+    return null;
+  }
   
   return (
     <Marker
-      coordinate={{ latitude: stylist.latitude, longitude: stylist.longitude }}
-      pinColor={pinColor}
-      onCalloutPress={() => onPress(stylist)}
+      point={{ 
+        lat: stylist.latitude, 
+        lon: stylist.longitude 
+      }}
+      onPress={() => onPress(stylist)}
     >
-      <Callout tooltip>
-        <View style={styles.callout}>
-          {stylist.avatar_url && (
+      <View style={styles.markerContainer}>
+        {/* Аватар стилиста */}
+        <View style={[styles.avatarContainer, { borderColor: statusColor }]}>
+          {stylist.avatar_url ? (
             <Image 
               source={{ uri: stylist.avatar_url }} 
               style={styles.avatar} 
             />
+          ) : (
+            <View style={[styles.avatarPlaceholder, { backgroundColor: statusColor }]}>
+              <Text style={styles.avatarPlaceholderText}>
+                {stylist.full_name.charAt(0).toUpperCase()}
+              </Text>
+            </View>
           )}
-          <Text style={styles.name}>{stylist.full_name}</Text>
-          <Text style={styles.mall}>{stylist.current_mall}</Text>
-          <Text style={[styles.status, { color: pinColor }]}>
-            {stylist.status === 'available' ? 'Свободен' : 'Занят'}
-          </Text>
         </View>
-      </Callout>
+        
+        {/* Индикатор статуса */}
+        <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
+      </View>
     </Marker>
   );
 }
 
 const styles = StyleSheet.create({
-  callout: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 12,
-    minWidth: 150,
+  markerContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 3,
+    backgroundColor: 'white',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
     elevation: 5,
   },
-  avatar: { 
-    width: 50, 
-    height: 50, 
-    borderRadius: 25, 
-    marginBottom: 8 
+  avatar: {
+    width: '100%',
+    height: '100%',
   },
-  name: { 
-    fontSize: 16, 
-    fontWeight: 'bold', 
-    marginBottom: 4 
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  mall: { 
-    fontSize: 14, 
-    color: '#666', 
-    marginBottom: 4 
+  avatarPlaceholderText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
-  status: { 
-    fontSize: 12, 
-    fontWeight: '600' 
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: 'white',
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
 });
-
