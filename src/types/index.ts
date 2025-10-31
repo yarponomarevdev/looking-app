@@ -38,6 +38,9 @@ export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
   StylistDetail: { id: string };
+  Bookings: undefined;
+  StylistBookings: undefined;
+  Notifications: undefined;
 };
 
 export type MainTabParamList = {
@@ -45,4 +48,30 @@ export type MainTabParamList = {
   List: undefined;
   Profile: undefined;
 };
+
+export interface Booking {
+  id: string;
+  client_id: string;
+  stylist_id: string;
+  booking_date: string;
+  booking_time: string;
+  mall: string;
+  comment?: string;
+  status: 'pending' | 'confirmed' | 'rejected' | 'completed';
+  created_at: string;
+  updated_at: string;
+  stylist?: Stylist;
+  client?: Profile;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: 'booking_created' | 'booking_confirmed' | 'booking_rejected';
+  related_booking_id?: string;
+  is_read: boolean;
+  created_at: string;
+}
 

@@ -7,12 +7,14 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useStylistStore } from '../store/stylistStore';
 import { Stylist } from '../types';
+import BookingModal from '../components/booking/BookingModal';
 
 export default function StylistDetailScreen({ route, navigation }: any) {
   const { id } = route.params;
   const { fetchStylistById } = useStylistStore();
   const [stylist, setStylist] = useState<Stylist | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   useEffect(() => {
     loadStylist();
@@ -91,10 +93,25 @@ export default function StylistDetailScreen({ route, navigation }: any) {
         </View>
       )}
 
-      {/* Кнопка связаться */}
-      <TouchableOpacity style={styles.contactButton}>
-        <Text style={styles.contactButtonText}>Связаться</Text>
+      {/* Кнопка записаться */}
+      <TouchableOpacity 
+        style={styles.contactButton}
+        onPress={() => setShowBookingModal(true)}
+      >
+        <Text style={styles.contactButtonText}>Записаться</Text>
       </TouchableOpacity>
+
+      {/* Модальное окно бронирования */}
+      <BookingModal
+        visible={showBookingModal}
+        stylistId={stylist.id}
+        stylistName={stylist.full_name}
+        onClose={() => setShowBookingModal(false)}
+        onSuccess={() => {
+          setShowBookingModal(false);
+          // Можно добавить навигацию к списку бронирований
+        }}
+      />
     </ScrollView>
   );
 }

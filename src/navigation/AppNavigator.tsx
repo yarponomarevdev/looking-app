@@ -4,22 +4,38 @@
  * Использует Stack Navigator и Tab Navigator
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
+import { useNotificationStore } from '../store/notificationStore';
+import NotificationBadge from '../components/notifications/NotificationBadge';
 
 import MapScreen from '../screens/MapScreen';
 import StylistListScreen from '../screens/StylistListScreen';
 import StylistDetailScreen from '../screens/StylistDetailScreen';
 import AuthScreen from '../screens/AuthScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import BookingsScreen from '../screens/BookingsScreen';
+import StylistBookingsScreen from '../screens/StylistBookingsScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function MainTabs() {
+  const { user } = useAuthStore();
+  const { unreadCount, fetchNotifications } = useNotificationStore();
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications(user.id);
+    }
+  }, [user]);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -33,6 +49,13 @@ function MainTabs() {
         options={{ 
           title: 'Карта',
           headerShown: false,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? 'map' : 'map-outline'} 
+              size={size} 
+              color={color} 
+            />
+          ),
         }} 
       />
       <Tab.Screen 
@@ -40,6 +63,13 @@ function MainTabs() {
         component={StylistListScreen} 
         options={{ 
           title: 'Список',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? 'list' : 'list-outline'} 
+              size={size} 
+              color={color} 
+            />
+          ),
         }} 
       />
       <Tab.Screen 
@@ -47,6 +77,20 @@ function MainTabs() {
         component={ProfileScreen} 
         options={{ 
           title: 'Профиль',
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={{ position: 'relative' }}>
+              <Ionicons 
+                name={focused ? 'person' : 'person-outline'} 
+                size={size} 
+                color={color} 
+              />
+              {unreadCount > 0 && (
+                <View style={{ position: 'absolute', top: -5, right: -10 }}>
+                  <NotificationBadge count={unreadCount} />
+                </View>
+              )}
+            </View>
+          ),
         }} 
       />
     </Tab.Navigator>
@@ -76,6 +120,21 @@ export default function AppNavigator() {
               name="StylistDetail" 
               component={StylistDetailScreen} 
               options={{ title: 'Профиль стилиста' }} 
+            />
+            <Stack.Screen 
+              name="Bookings" 
+              component={BookingsScreen} 
+              options={{ title: 'Мои записи' }} 
+            />
+            <Stack.Screen 
+              name="StylistBookings" 
+              component={StylistBookingsScreen} 
+              options={{ title: 'Запросы на встречи' }} 
+            />
+            <Stack.Screen 
+              name="Notifications" 
+              component={NotificationsScreen} 
+              options={{ title: 'Уведомления' }} 
             />
           </>
         )}

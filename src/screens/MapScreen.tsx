@@ -10,12 +10,16 @@ import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Location from 'expo-location';
 import { useStylistStore } from '../store/stylistStore';
 import { Stylist } from '../types';
+import StylistBottomSheet from '../components/map/StylistBottomSheet';
+import BookingModal from '../components/booking/BookingModal';
 
 export default function MapScreen({ navigation }: any) {
   const { stylists, loading, fetchStylists, subscribeToUpdates } = useStylistStore();
   const webViewRef = useRef<WebView>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [selectedStylist, setSelectedStylist] = useState<Stylist | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   useEffect(() => {
     initializeLocation();
@@ -76,11 +80,35 @@ export default function MapScreen({ navigation }: any) {
         setMapLoaded(true);
         console.log('✅ Яндекс.Карты загружены (WebView)');
       } else if (data.type === 'markerClick') {
-        navigation.navigate('StylistDetail', { id: data.stylistId });
+        // Находим стилиста по ID и показываем bottom sheet
+        const stylist = stylists.find(s => s.id === data.stylistId);
+        if (stylist) {
+          setSelectedStylist(stylist);
+        }
       }
     } catch (error) {
       console.error('Ошибка обработки сообщения:', error);
     }
+  };
+
+  const handleCloseBottomSheet = () => {
+    setSelectedStylist(null);
+  };
+
+  const handleBookPress = () => {
+    setShowBookingModal(true);
+  };
+
+  const handleDetailsPress = () => {
+    if (selectedStylist) {
+      setSelectedStylist(null);
+      navigation.navigate('StylistDetail', { id: selectedStylist.id });
+    }
+  };
+
+  const handleBookingSuccess = () => {
+    setShowBookingModal(false);
+    setSelectedStylist(null);
   };
 
   const htmlContent = `
@@ -204,6 +232,26 @@ export default function MapScreen({ navigation }: any) {
           </View>
         )}
       />
+
+      {/* Bottom Sheet для информации о стилисте */}
+      <StylistBottomSheet
+        stylist={selectedStylist}
+        visible={!!selectedStylist}
+        onClose={handleCloseBottomSheet}
+        onBookPress={handleBookPress}
+        onDetailsPress={handleDetailsPress}
+      />
+
+      {/* Модальное окно бронирования */}
+      {selectedStylist && (
+        <BookingModal
+          visible={showBookingModal}
+          stylistId={selectedStylist.id}
+          stylistName={selectedStylist.full_name}
+          onClose={() => setShowBookingModal(false)}
+          onSuccess={handleBookingSuccess}
+        />
+      )}
     </View>
   );
 }
