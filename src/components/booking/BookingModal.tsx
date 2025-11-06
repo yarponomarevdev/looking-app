@@ -47,11 +47,12 @@ export default function BookingModal({
   const [date, setDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedMall, setSelectedMall] = useState(MOSCOW_MALLS[0]);
+  const [selectedMall, setSelectedMall] = useState<string>('');
   const [comment, setComment] = useState('');
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [workSchedule, setWorkSchedule] = useState<WorkSchedule | null>(null);
+  const [stylistMalls, setStylistMalls] = useState<string[]>(MOSCOW_MALLS);
 
   // Загружаем график работы стилиста при открытии модального окна
   useEffect(() => {
@@ -68,13 +69,31 @@ export default function BookingModal({
   }, [date, workSchedule]);
 
   /**
-   * Загружает график работы стилиста
+   * Загружает график работы стилиста и его торговые центры
    */
   const loadStylistSchedule = async () => {
     try {
       const stylist = await fetchStylistById(stylistId);
-      if (stylist?.work_schedule) {
-        setWorkSchedule(stylist.work_schedule);
+      if (stylist) {
+        // Сохраняем график работы
+        if (stylist.work_schedule) {
+          setWorkSchedule(stylist.work_schedule);
+        }
+        
+        // Сохраняем список торговых центров стилиста
+        if (stylist.malls && stylist.malls.length > 0) {
+          setStylistMalls(stylist.malls);
+          // Устанавливаем первый ТЦ как выбранный по умолчанию
+          if (!selectedMall) {
+            setSelectedMall(stylist.malls[0]);
+          }
+        } else {
+          // Если у стилиста не указаны ТЦ, используем все доступные
+          setStylistMalls(MOSCOW_MALLS);
+          if (!selectedMall) {
+            setSelectedMall(MOSCOW_MALLS[0]);
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading stylist schedule:', error);
@@ -144,7 +163,7 @@ export default function BookingModal({
       setDate(new Date());
       setSelectedTime(null);
       setComment('');
-      setSelectedMall(MOSCOW_MALLS[0]);
+      setSelectedMall(stylistMalls[0] || '');
     } else {
       // Показываем конкретную ошибку из store или общее сообщение
       Alert.alert(
@@ -274,7 +293,7 @@ export default function BookingModal({
                   onValueChange={(value) => setSelectedMall(value)}
                   style={styles.picker}
                 >
-                  {MOSCOW_MALLS.map((mall) => (
+                  {stylistMalls.map((mall) => (
                     <Picker.Item key={mall} label={mall} value={mall} />
                   ))}
                 </Picker>

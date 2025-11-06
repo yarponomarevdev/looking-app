@@ -34,15 +34,6 @@ export default function MapScreen({ navigation }: any) {
   const [selectedMall, setSelectedMall] = useState<string | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
 
-  // Дебаг: логируем состояние стилистов
-  useEffect(() => {
-    console.log('👥 Стилисты обновлены:', {
-      количество: stylists.length,
-      загрузка: loading,
-      платформа: Platform.OS,
-      картаЗагружена: mapLoaded
-    });
-  }, [stylists, loading, mapLoaded]);
 
   // Перезагружаем данные при фокусе на экран
   useFocusEffect(
@@ -117,19 +108,14 @@ export default function MapScreen({ navigation }: any) {
       };
     });
 
-    console.log('📍 Обновление маркеров:', mallsData.length, 'торговых центров');
-
     if (Platform.OS === 'web') {
       // На веб отправляем сообщение в iframe
       const iframe = document.getElementById('yandex-map-iframe') as HTMLIFrameElement;
       if (iframe && iframe.contentWindow) {
-        console.log('✉️ Отправка данных в iframe:', mallsData);
         iframe.contentWindow.postMessage({
           type: 'updateMallMarkers',
           data: mallsData
         }, '*');
-      } else {
-        console.warn('⚠️ iframe не найден или не готов');
       }
     } else {
       // На мобильных используем injectJavaScript
@@ -150,9 +136,7 @@ export default function MapScreen({ navigation }: any) {
       
       if (data.type === 'mapLoaded') {
         setMapLoaded(true);
-        console.log('✅ Яндекс.Карты загружены (WebView)');
       } else if (data.type === 'mallMarkerClick') {
-        // Показываем список стилистов торгового центра
         setSelectedMall(data.mallName);
       }
     } catch (error) {
@@ -167,11 +151,8 @@ export default function MapScreen({ navigation }: any) {
         try {
           const data = event.data;
           
-          console.log('📬 Родительское окно получило сообщение:', data);
-          
           if (data.type === 'mapLoaded') {
             setMapLoaded(true);
-            console.log('✅ Яндекс.Карты загружены (Web)');
           } else if (data.type === 'mallMarkerClick') {
             setSelectedMall(data.mallName);
           }
@@ -180,19 +161,14 @@ export default function MapScreen({ navigation }: any) {
         }
       };
 
-      console.log('👂 Начинаем слушать сообщения от iframe');
       window.addEventListener('message', handleWebMessage);
-      return () => {
-        console.log('🔇 Останавливаем прослушивание сообщений');
-        window.removeEventListener('message', handleWebMessage);
-      };
+      return () => window.removeEventListener('message', handleWebMessage);
     }
   }, []);
 
   // Дополнительная логика для веб: повторная отправка маркеров после загрузки
   useEffect(() => {
     if (Platform.OS === 'web' && mapLoaded && stylists.length > 0) {
-      console.log('🔄 Повторная попытка обновить маркеры (веб)');
       const timer = setTimeout(() => {
         updateMallMarkers();
       }, 500);
@@ -232,7 +208,6 @@ export default function MapScreen({ navigation }: any) {
   // Генерируем HTML контент для карты (работает и в WebView, и в iframe)
   const getMapHTML = () => {
     const isWeb = Platform.OS === 'web';
-    console.log('🗺️ Генерация HTML карты для платформы:', Platform.OS);
     
     return `
 <!DOCTYPE html>
@@ -332,33 +307,11 @@ export default function MapScreen({ navigation }: any) {
       
       ${isWeb ? `
       // Слушаем сообщения от родительского окна (веб)
-      console.log('🎯 Iframe готов слушать сообщения');
       window.addEventListener('message', function(event) {
-        console.log('📨 Получено сообщение в iframe:', event.data);
         if (event.data && event.data.type === 'updateMallMarkers') {
-          console.log('🏢 Обновляем маркеры торговых центров:', event.data.data);
           window.updateMallMarkers(event.data.data);
         }
       });
-      
-      // ТЕСТ: Добавляем тестовые маркеры сразу после загрузки
-      console.log('🧪 Добавляем тестовые маркеры для проверки');
-      window.updateMallMarkers([
-        {
-          name: 'ТЦ Авиапарк',
-          lat: 55.790491,
-          lon: 37.531373,
-          address: 'Ходынский бульвар, 4',
-          stylistsCount: 2
-        },
-        {
-          name: 'ТЦ Европейский',
-          lat: 55.744263,
-          lon: 37.565527,
-          address: 'площадь Киевского Вокзала, 2',
-          stylistsCount: 3
-        }
-      ]);
       ` : ''}
       
       ${userLocation ? `
