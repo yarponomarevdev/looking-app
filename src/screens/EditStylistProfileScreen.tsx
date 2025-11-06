@@ -14,11 +14,14 @@ import {
   Alert,
   Switch,
   ActivityIndicator,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../store/authStore';
 import { useStylistStore } from '../store/stylistStore';
 import { MOSCOW_MALLS, POPULAR_BRANDS } from '../constants/malls';
 import { Stylist, WorkSchedule, SocialLinks } from '../types';
+import { supabase } from '../lib/supabase';
 
 const DAYS_OF_WEEK = [
   { key: 'monday' as keyof WorkSchedule, label: 'Понедельник' },
@@ -32,14 +35,16 @@ const DAYS_OF_WEEK = [
 
 export default function EditStylistProfileScreen({ navigation, route }: any) {
   const { user } = useAuthStore();
-  const { fetchStylistByUserId, updateStylist, updateStatus } = useStylistStore();
+  const { fetchStylistByUserId, updateStylist, updateStatus, fetchStylists } = useStylistStore();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   
   // Основная информация
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [bio, setBio] = useState('');
-  const [status, setStatus] = useState<'available' | 'busy' | 'offline'>('available');
+  const [status, setStatus] = useState<'active' | 'inactive'>('active');
   
   // Социальные сети
   const [instagram, setInstagram] = useState('');
@@ -76,6 +81,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     const stylist = await fetchStylistByUserId(user.id);
     
     if (stylist) {
+      setAvatarUrl(stylist.avatar_url || user.user_metadata?.avatar_url || null);
       setBio(stylist.bio || '');
       setStatus(stylist.status);
       setSelectedMalls(stylist.malls || []);
@@ -92,6 +98,100 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     }
     
     setLoading(false);
+  };
+
+  /**
+   * Выбор изображения из галереи
+   */
+  const pickImage = async () => {
+    // Запрашиваем разрешение на доступ к галерее
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Ошибка', 'Необходимо разрешение на доступ к галерее');
+      return;
+    }
+
+    // Открываем выбор изображения
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await uploadAvatar(result.assets[0].uri);
+    }
+  };
+
+  /**
+   * Загрузка аватара в Supabase Storage
+   */
+  const uploadAvatar = async (uri: string) => {
+    if (!user) return;
+
+    try {
+      setUploading(true);
+
+      // Получаем расширение файла
+      const fileExt = uri.split('.').pop() || 'jpg';
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Читаем файл как ArrayBuffer для Supabase
+      const response = await fetch(uri);
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Загружаем в Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, arrayBuffer, {
+          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Получаем публичный URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
+
+      // Обновляем метаданные пользователя
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl },
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Обновляем таблицу profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (profileError) {
+        console.error('Ошибка обновления profiles:', profileError);
+      }
+
+      setAvatarUrl(publicUrl);
+      
+      // Перезагружаем данные стилистов для обновления кеша
+      await fetchStylists();
+      
+      Alert.alert('Успешно', 'Аватар обновлен');
+    } catch (error: any) {
+      Alert.alert('Ошибка', error.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const toggleMall = (mall: string) => {
@@ -170,7 +270,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     }
   };
 
-  const handleStatusChange = async (newStatus: 'available' | 'busy' | 'offline') => {
+  const handleStatusChange = async (newStatus: 'active' | 'inactive') => {
     if (!user) return;
     setStatus(newStatus);
     await updateStatus(user.id, newStatus);
@@ -186,32 +286,56 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
 
   return (
     <ScrollView style={styles.container}>
+      {/* Аватар */}
+      <View style={styles.avatarSection}>
+        <Text style={styles.avatarSectionTitle}>Фото профиля</Text>
+        <TouchableOpacity 
+          style={styles.avatarContainer}
+          onPress={pickImage}
+          disabled={uploading}
+        >
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>
+                {user?.user_metadata?.full_name?.charAt(0).toUpperCase() || 'С'}
+              </Text>
+            </View>
+          )}
+          
+          {uploading ? (
+            <View style={styles.uploadingOverlay}>
+              <ActivityIndicator color="white" size="large" />
+            </View>
+          ) : (
+            <View style={styles.editBadge}>
+              <Text style={styles.editBadgeText}>✏️</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.avatarHint}>Нажмите на фото, чтобы изменить</Text>
+      </View>
+
       {/* Статус */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Текущий статус</Text>
+        <Text style={styles.hint}>Выберите, доступны ли вы для новых записей</Text>
         <View style={styles.statusButtons}>
           <TouchableOpacity
-            style={[styles.statusButton, status === 'available' && styles.statusButtonActive]}
-            onPress={() => handleStatusChange('available')}
+            style={[styles.statusButton, status === 'active' && styles.statusButtonActive]}
+            onPress={() => handleStatusChange('active')}
           >
-            <Text style={[styles.statusButtonText, status === 'available' && styles.statusButtonTextActive]}>
-              ✅ Свободен
+            <Text style={[styles.statusButtonText, status === 'active' && styles.statusButtonTextActive]}>
+              ✅ Активен
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.statusButton, status === 'busy' && styles.statusButtonActive]}
-            onPress={() => handleStatusChange('busy')}
+            style={[styles.statusButton, status === 'inactive' && styles.statusButtonActive]}
+            onPress={() => handleStatusChange('inactive')}
           >
-            <Text style={[styles.statusButtonText, status === 'busy' && styles.statusButtonTextActive]}>
-              ⏳ Занят
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.statusButton, status === 'offline' && styles.statusButtonActive]}
-            onPress={() => handleStatusChange('offline')}
-          >
-            <Text style={[styles.statusButtonText, status === 'offline' && styles.statusButtonTextActive]}>
-              ⛔ Офлайн
+            <Text style={[styles.statusButtonText, status === 'inactive' && styles.statusButtonTextActive]}>
+              ⛔ Не активен
             </Text>
           </TouchableOpacity>
         </View>
@@ -398,6 +522,73 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarSection: {
+    backgroundColor: 'white',
+    padding: 20,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  avatarSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#333',
+    alignSelf: 'flex-start',
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  avatarPlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#6200ee',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 56,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#6200ee',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
+  },
+  editBadgeText: {
+    fontSize: 16,
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarHint: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
   section: {
     backgroundColor: 'white',

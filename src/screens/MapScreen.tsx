@@ -4,10 +4,11 @@
  * Поддерживает геолокацию пользователя и real-time обновления
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Location from 'expo-location';
+import { useFocusEffect } from '@react-navigation/native';
 import { useStylistStore } from '../store/stylistStore';
 import { Stylist } from '../types';
 import { MOSCOW_MALLS_WITH_COORDS } from '../constants/malls';
@@ -23,6 +24,13 @@ export default function MapScreen({ navigation }: any) {
   const [selectedStylist, setSelectedStylist] = useState<Stylist | null>(null);
   const [selectedMall, setSelectedMall] = useState<string | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+
+  // Перезагружаем данные при фокусе на экран
+  useFocusEffect(
+    useCallback(() => {
+      fetchStylists();
+    }, [])
+  );
 
   useEffect(() => {
     initializeLocation();

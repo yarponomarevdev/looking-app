@@ -43,14 +43,20 @@ export default function StylistDetailScreen({ route, navigation }: any) {
     );
   }
 
-  const statusColor = stylist.status === 'available' ? '#4CAF50' : '#FFA726';
-  const statusText = stylist.status === 'available' ? 'Свободен' : 'Занят';
+  const statusColor = stylist.status === 'active' ? '#4CAF50' : '#999';
+  const statusText = stylist.status === 'active' ? 'Активен' : 'Не активен';
 
   return (
     <ScrollView style={styles.container}>
       {/* Аватар */}
-      {stylist.avatar_url && (
+      {stylist.avatar_url ? (
         <Image source={{ uri: stylist.avatar_url }} style={styles.avatar} />
+      ) : (
+        <View style={styles.avatarPlaceholder}>
+          <Text style={styles.avatarPlaceholderText}>
+            {stylist.full_name?.charAt(0).toUpperCase() || 'С'}
+          </Text>
+        </View>
       )}
 
       {/* Основная информация */}
@@ -216,6 +222,18 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 300,
     resizeMode: 'cover',
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: 300,
+    backgroundColor: '#6200ee',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarPlaceholderText: {
+    fontSize: 120,
+    color: 'white',
+    fontWeight: 'bold',
   },
   infoSection: {
     padding: 20,

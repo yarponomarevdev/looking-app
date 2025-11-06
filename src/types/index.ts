@@ -34,7 +34,7 @@ export interface Stylist {
   full_name: string;
   avatar_url: string | null;
   bio: string;
-  status: 'available' | 'busy' | 'offline';
+  status: 'active' | 'inactive';
   latitude: number;
   longitude: number;
   malls: string[]; // Массив торговых центров

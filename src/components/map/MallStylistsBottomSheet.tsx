@@ -60,8 +60,8 @@ export default function MallStylistsBottomSheet({
   if (!mallName) return null;
 
   const renderStylistItem = ({ item }: { item: Stylist }) => {
-    const statusColor = item.status === 'available' ? '#4CAF50' : '#FFA726';
-    const statusText = item.status === 'available' ? 'Свободен' : 'Занят';
+    const statusColor = item.status === 'active' ? '#4CAF50' : '#999';
+    const statusText = item.status === 'active' ? 'Активен' : 'Не активен';
 
     return (
       <TouchableOpacity 
@@ -69,11 +69,17 @@ export default function MallStylistsBottomSheet({
         onPress={() => onStylistPress(item)}
       >
         <View style={styles.stylistRow}>
-          {item.avatar_url && (
+          {item.avatar_url ? (
             <Image 
               source={{ uri: item.avatar_url }} 
               style={styles.avatar} 
             />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarPlaceholderText}>
+                {item.full_name?.charAt(0).toUpperCase() || 'С'}
+              </Text>
+            </View>
           )}
           <View style={styles.stylistInfo}>
             <Text style={styles.stylistName}>{item.full_name}</Text>
@@ -214,6 +220,20 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 12,
+  },
+  avatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#6200ee',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarPlaceholderText: {
+    fontSize: 20,
+    color: 'white',
+    fontWeight: 'bold',
   },
   stylistInfo: {
     flex: 1,

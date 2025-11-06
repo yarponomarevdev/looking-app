@@ -15,7 +15,7 @@ interface StylistState {
   fetchStylistById: (id: string) => Promise<Stylist | null>;
   fetchStylistByUserId: (userId: string) => Promise<Stylist | null>;
   updateStylist: (userId: string, updates: Partial<Stylist>) => Promise<boolean>;
-  updateStatus: (userId: string, status: 'available' | 'busy' | 'offline') => Promise<boolean>;
+  updateStatus: (userId: string, status: 'active' | 'inactive') => Promise<boolean>;
   subscribeToUpdates: () => () => void;
 }
 
@@ -33,7 +33,7 @@ export const useStylistStore = create<StylistState>((set, get) => ({
         id, bio, status, latitude, longitude, malls, brands, social_links, work_schedule, portfolio_images,
         profiles:user_id (full_name, avatar_url)
       `)
-      .in('status', ['available', 'busy']);
+      .eq('status', 'active');
     
     if (error) {
       set({ error: error.message, loading: false });
@@ -145,7 +145,7 @@ export const useStylistStore = create<StylistState>((set, get) => ({
     }
   },
 
-  updateStatus: async (userId: string, status: 'available' | 'busy' | 'offline') => {
+  updateStatus: async (userId: string, status: 'active' | 'inactive') => {
     try {
       const { error } = await supabase
         .from('stylists')

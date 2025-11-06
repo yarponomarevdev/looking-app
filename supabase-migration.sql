@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS stylists (
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE,
   bio TEXT,
   portfolio_images TEXT[],
-  status TEXT CHECK (status IN ('available', 'busy', 'offline')) DEFAULT 'available',
+  status TEXT CHECK (status IN ('active', 'inactive')) DEFAULT 'active',
   latitude DOUBLE PRECISION,
   longitude DOUBLE PRECISION,
   malls TEXT[], -- Массив торговых центров, в которых работает стилист
@@ -113,7 +113,7 @@ BEGIN
     VALUES (
       NEW.id,
       'Расскажите о себе и своем опыте работы стилистом',
-      'available',  -- По умолчанию доступен для бронирований
+      'active',  -- По умолчанию активен для бронирований
       55.7558,      -- Координаты центра Москвы по умолчанию
       37.6173,
       ARRAY[]::TEXT[], -- Пустой массив ТЦ (заполнит стилист)
@@ -171,7 +171,7 @@ INSERT INTO stylists (user_id, bio, status, latitude, longitude, malls, brands, 
 VALUES (
   '00000000-0000-0000-0000-000000000000', -- Замените на реальный UUID
   'Профессиональный стилист с опытом работы 5+ лет. Специализируюсь на casual и business стилях.',
-  'available',
+  'active',
   55.7558, -- Москва
   37.6173,
   ARRAY['ТЦ Европейский', 'ТЦ Афимолл', 'ТЦ Атриум'], -- Массив ТЦ

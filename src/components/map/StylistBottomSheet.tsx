@@ -57,8 +57,8 @@ export default function StylistBottomSheet({
 
   if (!stylist) return null;
 
-  const statusColor = stylist.status === 'available' ? '#4CAF50' : '#FFA726';
-  const statusText = stylist.status === 'available' ? 'Свободен сейчас' : 'Занят';
+  const statusColor = stylist.status === 'active' ? '#4CAF50' : '#999';
+  const statusText = stylist.status === 'active' ? 'Активен' : 'Не активен';
 
   return (
     <>
@@ -84,11 +84,17 @@ export default function StylistBottomSheet({
         <View style={styles.content}>
           {/* Заголовок с фото */}
           <View style={styles.header}>
-            {stylist.avatar_url && (
+            {stylist.avatar_url ? (
               <Image 
                 source={{ uri: stylist.avatar_url }} 
                 style={styles.avatar} 
               />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarPlaceholderText}>
+                  {stylist.full_name?.charAt(0).toUpperCase() || 'С'}
+                </Text>
+              </View>
             )}
             <View style={styles.headerInfo}>
               <Text style={styles.name}>{stylist.full_name}</Text>
@@ -189,6 +195,20 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 35,
     marginRight: 12,
+  },
+  avatarPlaceholder: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#6200ee',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarPlaceholderText: {
+    fontSize: 28,
+    color: 'white',
+    fontWeight: 'bold',
   },
   headerInfo: {
     flex: 1,

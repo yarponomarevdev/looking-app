@@ -14,7 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.looking.app"
+      "bundleIdentifier": "com.looking.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Приложению нужен доступ к галерее для загрузки аватара профиля.",
+        "NSCameraUsageDescription": "Приложению нужен доступ к камере для съемки фото профиля."
+      }
     },
     "android": {
       "package": "com.looking.app",
@@ -37,6 +41,13 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Приложению нужен доступ к геолокации для отображения стилистов рядом с вами."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Приложению нужен доступ к галерее для загрузки аватара профиля.",
+          "cameraPermission": "Приложению нужен доступ к камере для съемки фото профиля."
         }
       ]
     ]
