@@ -41,7 +41,7 @@ export default function StylistBottomSheet({
       // Показать
       Animated.spring(translateY, {
         toValue: 0,
-        useNativeDriver: true,
+        useNativeDriver: false,
         tension: 50,
         friction: 8,
       }).start();
@@ -50,7 +50,7 @@ export default function StylistBottomSheet({
       Animated.timing(translateY, {
         toValue: SHEET_HEIGHT,
         duration: 250,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     }
   }, [visible, stylist]);
@@ -167,10 +167,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
+    boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.25)',
     elevation: 10,
   },
   handle: {
