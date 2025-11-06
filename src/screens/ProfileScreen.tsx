@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator, TextInput, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../store/authStore';
@@ -393,28 +393,45 @@ export default function ProfileScreen({ navigation }: any) {
   /**
    * Удаление из избранного
    */
-  const handleRemoveFromFavorites = (lookId: string) => {
+  const handleRemoveFromFavorites = async (lookId: string) => {
     if (!user) return;
     
-    Alert.alert(
-      'Удалить из избранного?',
-      'Вы всегда можете добавить образ снова',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Удалить',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await removeFromFavorites(user.id, lookId);
-            if (success) {
-              await loadFavoriteLooks();
-            } else {
-              Alert.alert('Ошибка', 'Не удалось удалить из избранного');
-            }
-          },
-        },
-      ]
-    );
+    // Кроссплатформенное подтверждение
+    let confirmed = false;
+    if (Platform.OS === 'web') {
+      confirmed = window.confirm('Удалить из избранного?\nВы всегда можете добавить образ снова');
+    } else {
+      await new Promise<void>((resolve) => {
+        Alert.alert(
+          'Удалить из избранного?',
+          'Вы всегда можете добавить образ снова',
+          [
+            { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+            {
+              text: 'Удалить',
+              style: 'destructive',
+              onPress: () => {
+                confirmed = true;
+                resolve();
+              },
+            },
+          ]
+        );
+      });
+    }
+    
+    if (confirmed) {
+      const success = await removeFromFavorites(user.id, lookId);
+      if (success) {
+        await loadFavoriteLooks();
+      } else {
+        if (Platform.OS === 'web') {
+          alert('Ошибка: Не удалось удалить из избранного');
+        } else {
+          Alert.alert('Ошибка', 'Не удалось удалить из избранного');
+        }
+      }
+    }
   };
 
   /**
@@ -428,24 +445,41 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
   const handleSignOut = async () => {
-    Alert.alert(
-      'Выход',
-      'Вы уверены, что хотите выйти?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Выйти',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-            } catch (error: any) {
-              Alert.alert('Ошибка', error.message);
-            }
-          },
-        },
-      ]
-    );
+    // Кроссплатформенное подтверждение
+    let confirmed = false;
+    if (Platform.OS === 'web') {
+      confirmed = window.confirm('Вы уверены, что хотите выйти?');
+    } else {
+      await new Promise<void>((resolve) => {
+        Alert.alert(
+          'Выход',
+          'Вы уверены, что хотите выйти?',
+          [
+            { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+            {
+              text: 'Выйти',
+              style: 'destructive',
+              onPress: () => {
+                confirmed = true;
+                resolve();
+              },
+            },
+          ]
+        );
+      });
+    }
+    
+    if (confirmed) {
+      try {
+        await signOut();
+      } catch (error: any) {
+        if (Platform.OS === 'web') {
+          alert(`Ошибка: ${error.message}`);
+        } else {
+          Alert.alert('Ошибка', error.message);
+        }
+      }
+    }
   };
 
   return (
@@ -536,6 +570,7 @@ export default function ProfileScreen({ navigation }: any) {
                       <TouchableOpacity
                         style={styles.deleteLookButtonSmall}
                         onPress={() => handleRemoveFromFavorites(look.id)}
+                        activeOpacity={0.7}
                       >
                         <Text style={styles.deleteLookTextSmall}>✕</Text>
                       </TouchableOpacity>
@@ -659,7 +694,11 @@ export default function ProfileScreen({ navigation }: any) {
         </View>
 
         {/* Кнопка выхода */}
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <TouchableOpacity 
+          style={styles.signOutButton} 
+          onPress={handleSignOut}
+          activeOpacity={0.8}
+        >
           <Text style={styles.signOutButtonText}>Выйти</Text>
         </TouchableOpacity>
       </View>
@@ -866,11 +905,13 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
+    cursor: 'pointer',
   },
   signOutButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+    userSelect: 'none',
   },
   looksSection: {
     width: '100%',
@@ -926,8 +967,14 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   deleteLookButtonSmall: {
-    padding: 2,
+    padding: 4,
     marginLeft: 4,
+    minWidth: 24,
+    minHeight: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+    backgroundColor: '#fff5f5',
   },
   deleteLookTextSmall: {
     fontSize: 16,

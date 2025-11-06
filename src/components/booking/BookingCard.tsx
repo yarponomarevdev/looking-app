@@ -107,6 +107,7 @@ export default function BookingCard({
               <TouchableOpacity 
                 style={[styles.actionButton, styles.confirmButton]}
                 onPress={onConfirm}
+                activeOpacity={0.8}
               >
                 <Text style={styles.actionButtonText}>Подтвердить</Text>
               </TouchableOpacity>
@@ -115,6 +116,7 @@ export default function BookingCard({
               <TouchableOpacity 
                 style={[styles.actionButton, styles.rejectButton]}
                 onPress={onReject}
+                activeOpacity={0.8}
               >
                 <Text style={styles.actionButtonText}>Отклонить</Text>
               </TouchableOpacity>
@@ -123,6 +125,7 @@ export default function BookingCard({
               <TouchableOpacity 
                 style={[styles.actionButton, styles.cancelButton]}
                 onPress={onCancel}
+                activeOpacity={0.8}
               >
                 <Text style={styles.actionButtonText}>Отменить</Text>
               </TouchableOpacity>
@@ -142,10 +145,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     overflow: 'hidden',
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   statusBar: {
     padding: 8,

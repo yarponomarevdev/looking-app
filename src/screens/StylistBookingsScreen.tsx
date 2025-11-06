@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useBookingStore } from '../store/bookingStore';
 import { useAuthStore } from '../store/authStore';
 import { useStylistStore } from '../store/stylistStore';
@@ -77,61 +77,100 @@ export default function StylistBookingsScreen() {
   }, [user, stylists]);
 
   const handleConfirm = async (bookingId: string) => {
-    Alert.alert(
-      'Подтвердить встречу',
-      'Вы уверены, что хотите подтвердить эту встречу?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Подтвердить',
-          onPress: async () => {
-            const success = await updateBookingStatus(bookingId, 'confirmed');
-            if (success && stylistId) {
-              fetchStylistBookings(stylistId);
-            }
-          },
-        },
-      ]
-    );
+    // Кроссплатформенное подтверждение
+    let confirmed = false;
+    if (Platform.OS === 'web') {
+      confirmed = window.confirm('Вы уверены, что хотите подтвердить эту встречу?');
+    } else {
+      await new Promise<void>((resolve) => {
+        Alert.alert(
+          'Подтвердить встречу',
+          'Вы уверены, что хотите подтвердить эту встречу?',
+          [
+            { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+            {
+              text: 'Подтвердить',
+              onPress: () => {
+                confirmed = true;
+                resolve();
+              },
+            },
+          ]
+        );
+      });
+    }
+    
+    if (confirmed) {
+      const success = await updateBookingStatus(bookingId, 'confirmed');
+      if (success && stylistId) {
+        fetchStylistBookings(stylistId);
+      }
+    }
   };
 
   const handleReject = async (bookingId: string) => {
-    Alert.alert(
-      'Отклонить запрос',
-      'Вы уверены, что хотите отклонить этот запрос на встречу?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Отклонить',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await updateBookingStatus(bookingId, 'rejected');
-            if (success && stylistId) {
-              fetchStylistBookings(stylistId);
-            }
-          },
-        },
-      ]
-    );
+    // Кроссплатформенное подтверждение
+    let confirmed = false;
+    if (Platform.OS === 'web') {
+      confirmed = window.confirm('Вы уверены, что хотите отклонить этот запрос на встречу?');
+    } else {
+      await new Promise<void>((resolve) => {
+        Alert.alert(
+          'Отклонить запрос',
+          'Вы уверены, что хотите отклонить этот запрос на встречу?',
+          [
+            { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+            {
+              text: 'Отклонить',
+              style: 'destructive',
+              onPress: () => {
+                confirmed = true;
+                resolve();
+              },
+            },
+          ]
+        );
+      });
+    }
+    
+    if (confirmed) {
+      const success = await updateBookingStatus(bookingId, 'rejected');
+      if (success && stylistId) {
+        fetchStylistBookings(stylistId);
+      }
+    }
   };
 
   const handleComplete = async (bookingId: string) => {
-    Alert.alert(
-      'Завершить встречу',
-      'Отметить эту встречу как завершенную?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Завершить',
-          onPress: async () => {
-            const success = await updateBookingStatus(bookingId, 'completed');
-            if (success && stylistId) {
-              fetchStylistBookings(stylistId);
-            }
-          },
-        },
-      ]
-    );
+    // Кроссплатформенное подтверждение
+    let confirmed = false;
+    if (Platform.OS === 'web') {
+      confirmed = window.confirm('Отметить эту встречу как завершенную?');
+    } else {
+      await new Promise<void>((resolve) => {
+        Alert.alert(
+          'Завершить встречу',
+          'Отметить эту встречу как завершенную?',
+          [
+            { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+            {
+              text: 'Завершить',
+              onPress: () => {
+                confirmed = true;
+                resolve();
+              },
+            },
+          ]
+        );
+      });
+    }
+    
+    if (confirmed) {
+      const success = await updateBookingStatus(bookingId, 'completed');
+      if (success && stylistId) {
+        fetchStylistBookings(stylistId);
+      }
+    }
   };
 
   // Разделяем бронирования по статусам
