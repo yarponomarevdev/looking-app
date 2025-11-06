@@ -327,7 +327,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
             onPress={() => handleStatusChange('active')}
           >
             <Text style={[styles.statusButtonText, status === 'active' && styles.statusButtonTextActive]}>
-              ✅ Активен
+              Активен
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -335,7 +335,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
             onPress={() => handleStatusChange('inactive')}
           >
             <Text style={[styles.statusButtonText, status === 'inactive' && styles.statusButtonTextActive]}>
-              ⛔ Не активен
+              Не активен
             </Text>
           </TouchableOpacity>
         </View>
