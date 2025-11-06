@@ -22,6 +22,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import BookingsScreen from '../screens/BookingsScreen';
 import StylistBookingsScreen from '../screens/StylistBookingsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import EditStylistProfileScreen from '../screens/EditStylistProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -135,6 +136,11 @@ export default function AppNavigator() {
               name="Notifications" 
               component={NotificationsScreen} 
               options={{ title: 'Уведомления' }} 
+            />
+            <Stack.Screen 
+              name="EditStylistProfile" 
+              component={EditStylistProfileScreen} 
+              options={{ title: 'Редактировать профиль' }} 
             />
           </>
         )}

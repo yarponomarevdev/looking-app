@@ -29,11 +29,14 @@ export default function StylistListScreen({ navigation }: any) {
         )}
         <View style={styles.info}>
           <Text style={styles.name}>{item.full_name}</Text>
-          <Text style={styles.mall}>{item.current_mall}</Text>
-          <View style={styles.ratingContainer}>
-            <Text style={styles.rating}>⭐ {item.rating.toFixed(1)}</Text>
-            <Text style={[styles.status, { color: statusColor }]}>{statusText}</Text>
-          </View>
+          {item.malls && item.malls.length > 0 && (
+            <Text style={styles.mall} numberOfLines={1}>
+              {item.malls.length === 1 
+                ? item.malls[0] 
+                : `${item.malls[0]} и еще ${item.malls.length - 1}`}
+            </Text>
+          )}
+          <Text style={[styles.status, { color: statusColor }]}>{statusText}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -98,15 +101,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 4,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  rating: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   status: {
     fontSize: 12,

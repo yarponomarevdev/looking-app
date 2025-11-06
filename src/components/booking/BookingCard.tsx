@@ -82,9 +82,6 @@ export default function BookingCard({
             <Text style={styles.name}>
               {booking.stylist?.full_name || booking.client?.full_name || 'Без имени'}
             </Text>
-            {booking.stylist?.rating && (
-              <Text style={styles.rating}>⭐ {booking.stylist.rating.toFixed(1)}</Text>
-            )}
           </View>
         </View>
 
@@ -179,11 +176,6 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  rating: {
-    fontSize: 14,
-    color: '#666',
   },
   details: {
     marginBottom: 12,

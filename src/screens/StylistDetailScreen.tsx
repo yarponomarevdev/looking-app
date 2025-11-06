@@ -63,10 +63,17 @@ export default function StylistDetailScreen({ route, navigation }: any) {
           </Text>
         </View>
 
-        <View style={styles.detailsRow}>
-          <Text style={styles.rating}>⭐ {stylist.rating.toFixed(1)}</Text>
-          <Text style={styles.mall}>📍 {stylist.current_mall}</Text>
-        </View>
+        {/* Торговые центры */}
+        {stylist.malls && stylist.malls.length > 0 && (
+          <View style={styles.mallsContainer}>
+            <Text style={styles.mallsLabel}>📍 Работает в:</Text>
+            <View style={styles.mallsList}>
+              {stylist.malls.map((mall, index) => (
+                <Text key={index} style={styles.mallItem}>• {mall}</Text>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Био */}
@@ -74,6 +81,76 @@ export default function StylistDetailScreen({ route, navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>О стилисте</Text>
           <Text style={styles.bio}>{stylist.bio}</Text>
+        </View>
+      )}
+
+      {/* Бренды */}
+      {stylist.brands && stylist.brands.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Специализация по брендам</Text>
+          <View style={styles.brandsContainer}>
+            {stylist.brands.map((brand, index) => (
+              <View key={index} style={styles.brandTag}>
+                <Text style={styles.brandText}>{brand}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* График работы */}
+      {stylist.work_schedule && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>График работы</Text>
+          {Object.entries(stylist.work_schedule).map(([day, schedule]) => {
+            if (!schedule.enabled) return null;
+            const dayNames: {[key: string]: string} = {
+              monday: 'Понедельник',
+              tuesday: 'Вторник',
+              wednesday: 'Среда',
+              thursday: 'Четверг',
+              friday: 'Пятница',
+              saturday: 'Суббота',
+              sunday: 'Воскресенье',
+            };
+            return (
+              <View key={day} style={styles.scheduleItem}>
+                <Text style={styles.scheduleDay}>{dayNames[day]}</Text>
+                <Text style={styles.scheduleTime}>{schedule.start} — {schedule.end}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Социальные сети */}
+      {stylist.social_links && Object.keys(stylist.social_links).length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Связаться</Text>
+          {stylist.social_links.instagram && (
+            <TouchableOpacity style={styles.socialLink}>
+              <Text style={styles.socialIcon}>📷</Text>
+              <Text style={styles.socialText}>Instagram: @{stylist.social_links.instagram}</Text>
+            </TouchableOpacity>
+          )}
+          {stylist.social_links.vk && (
+            <TouchableOpacity style={styles.socialLink}>
+              <Text style={styles.socialIcon}>🔵</Text>
+              <Text style={styles.socialText}>VK: {stylist.social_links.vk}</Text>
+            </TouchableOpacity>
+          )}
+          {stylist.social_links.telegram && (
+            <TouchableOpacity style={styles.socialLink}>
+              <Text style={styles.socialIcon}>✈️</Text>
+              <Text style={styles.socialText}>Telegram: {stylist.social_links.telegram}</Text>
+            </TouchableOpacity>
+          )}
+          {stylist.social_links.whatsapp && (
+            <TouchableOpacity style={styles.socialLink}>
+              <Text style={styles.socialIcon}>💬</Text>
+              <Text style={styles.socialText}>WhatsApp: {stylist.social_links.whatsapp}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -156,17 +233,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  detailsRow: {
-    flexDirection: 'row',
-    gap: 16,
+  mallsContainer: {
+    marginTop: 12,
   },
-  rating: {
-    fontSize: 16,
+  mallsLabel: {
+    fontSize: 14,
     fontWeight: '600',
-  },
-  mall: {
-    fontSize: 16,
     color: '#666',
+    marginBottom: 8,
+  },
+  mallsList: {
+    gap: 4,
+  },
+  mallItem: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
   },
   section: {
     marginTop: 12,
@@ -200,6 +282,55 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  brandsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  brandTag: {
+    backgroundColor: '#e8e8e8',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  brandText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  scheduleItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  scheduleDay: {
+    fontSize: 15,
+    color: '#333',
+    fontWeight: '500',
+  },
+  scheduleTime: {
+    fontSize: 15,
+    color: '#666',
+  },
+  socialLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  socialIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  socialText: {
+    fontSize: 15,
+    color: '#6200ee',
+    flex: 1,
   },
 });
 

@@ -56,7 +56,6 @@ export default function StylistBookingsScreen() {
             latitude: data.latitude,
             longitude: data.longitude,
             current_mall: data.current_mall,
-            rating: data.rating,
             portfolio_images: data.portfolio_images || [],
           };
         } else {

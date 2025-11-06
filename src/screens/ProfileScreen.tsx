@@ -68,6 +68,19 @@ export default function ProfileScreen({ navigation }: any) {
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle}>Меню</Text>
 
+          {/* Редактировать профиль (только для стилистов) */}
+          {isStylist && (
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('EditStylistProfile')}
+            >
+              <View style={styles.menuItemContent}>
+                <Text style={styles.menuIcon}>✏️</Text>
+                <Text style={styles.menuText}>Редактировать профиль</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Уведомления */}
           <TouchableOpacity
             style={styles.menuItem}

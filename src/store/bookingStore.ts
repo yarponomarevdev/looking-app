@@ -41,7 +41,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         .select(`
           *,
           stylist:stylists (
-            id, bio, status, current_mall, rating,
+            id, bio, status, malls, brands,
             profiles:user_id (full_name, avatar_url)
           )
         `)
@@ -64,8 +64,10 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           status: data.stylist.status,
           latitude: 0,
           longitude: 0,
-          current_mall: data.stylist.current_mall,
-          rating: data.stylist.rating,
+          malls: data.stylist.malls || [],
+          brands: data.stylist.brands || [],
+          social_links: {},
+          work_schedule: {},
           portfolio_images: [],
         } : undefined,
       };
@@ -86,7 +88,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       .select(`
         *,
         stylist:stylists (
-          id, bio, status, current_mall, rating,
+          id, bio, status, malls, brands,
           profiles:user_id (full_name, avatar_url)
         )
       `)
@@ -109,8 +111,10 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         status: item.stylist.status,
         latitude: 0,
         longitude: 0,
-        current_mall: item.stylist.current_mall,
-        rating: item.stylist.rating,
+        malls: item.stylist.malls || [],
+        brands: item.stylist.brands || [],
+        social_links: {},
+        work_schedule: {},
         portfolio_images: [],
       } : undefined,
     }));

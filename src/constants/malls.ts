@@ -28,3 +28,56 @@ export const MOSCOW_MALLS = [
 
 export const getDefaultMall = () => MOSCOW_MALLS[0];
 
+/**
+ * Популярные бренды одежды для тэгов в профиле стилиста
+ */
+export const POPULAR_BRANDS = [
+  // Масс-маркет
+  'Zara',
+  'H&M',
+  'Mango',
+  'Uniqlo',
+  'Bershka',
+  'Pull&Bear',
+  'Stradivarius',
+  'Reserved',
+  'Massimo Dutti',
+  
+  // Средний сегмент
+  'COS',
+  'Marks & Spencer',
+  'Sandro',
+  'Maje',
+  'Ted Baker',
+  'AllSaints',
+  
+  // Премиум
+  'Armani',
+  'Hugo Boss',
+  'Tommy Hilfiger',
+  'Calvin Klein',
+  'Ralph Lauren',
+  'Lacoste',
+  
+  // Люкс
+  'Gucci',
+  'Prada',
+  'Louis Vuitton',
+  'Chanel',
+  'Dior',
+  'Versace',
+  
+  // Спортивные
+  'Nike',
+  'Adidas',
+  'Puma',
+  'Reebok',
+  'New Balance',
+  
+  // Российские
+  'OSTIN',
+  '12 Storeez',
+  'Lime',
+  'Love Republic',
+];
+

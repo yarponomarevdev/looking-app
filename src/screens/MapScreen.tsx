@@ -57,7 +57,11 @@ export default function MapScreen({ navigation }: any) {
       lat: stylist.latitude,
       lon: stylist.longitude,
       name: stylist.full_name,
-      mall: stylist.current_mall,
+      mall: stylist.malls && stylist.malls.length > 0 
+        ? (stylist.malls.length === 1 
+          ? stylist.malls[0] 
+          : `${stylist.malls[0]} и еще ${stylist.malls.length - 1}`)
+        : 'Не указан',
       status: stylist.status,
       avatar: stylist.avatar_url,
     }));

@@ -3,6 +3,31 @@
  * Содержит интерфейсы для стилистов, профилей и навигации
  */
 
+// Интерфейс для графика работы стилиста
+export interface WorkSchedule {
+  monday: DaySchedule;
+  tuesday: DaySchedule;
+  wednesday: DaySchedule;
+  thursday: DaySchedule;
+  friday: DaySchedule;
+  saturday: DaySchedule;
+  sunday: DaySchedule;
+}
+
+export interface DaySchedule {
+  enabled: boolean;
+  start: string; // Формат "HH:MM"
+  end: string;   // Формат "HH:MM"
+}
+
+// Интерфейс для социальных сетей
+export interface SocialLinks {
+  instagram?: string;
+  vk?: string;
+  telegram?: string;
+  whatsapp?: string;
+}
+
 export interface Stylist {
   id: string;
   user_id: string;
@@ -12,8 +37,10 @@ export interface Stylist {
   status: 'available' | 'busy' | 'offline';
   latitude: number;
   longitude: number;
-  current_mall: string;
-  rating: number;
+  malls: string[]; // Массив торговых центров
+  brands: string[]; // Массив брендов одежды
+  social_links: SocialLinks; // Социальные сети
+  work_schedule: WorkSchedule; // График работы
   portfolio_images: string[];
 }
 
@@ -41,6 +68,7 @@ export type RootStackParamList = {
   Bookings: undefined;
   StylistBookings: undefined;
   Notifications: undefined;
+  EditStylistProfile: undefined;
 };
 
 export type MainTabParamList = {

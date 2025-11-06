@@ -97,10 +97,21 @@ export default function StylistBottomSheet({
                   ● {statusText}
                 </Text>
               </View>
-              <View style={styles.detailsRow}>
-                <Text style={styles.rating}>⭐ {stylist.rating.toFixed(1)}</Text>
-                <Text style={styles.mall}>📍 {stylist.current_mall}</Text>
-              </View>
+              {/* Отображаем первый ТЦ или "Несколько ТЦ" */}
+              {stylist.malls && stylist.malls.length > 0 && (
+                <Text style={styles.mall}>
+                  📍 {stylist.malls.length === 1 
+                    ? stylist.malls[0] 
+                    : `${stylist.malls[0]} и еще ${stylist.malls.length - 1}`}
+                </Text>
+              )}
+              {/* Показываем несколько брендов */}
+              {stylist.brands && stylist.brands.length > 0 && (
+                <Text style={styles.brands} numberOfLines={1}>
+                  {stylist.brands.slice(0, 3).join(', ')}
+                  {stylist.brands.length > 3 && ' ...'}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -195,17 +206,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  detailsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  rating: {
-    fontSize: 14,
-    color: '#666',
-  },
   mall: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
+    marginTop: 4,
+  },
+  brands: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
   },
   bio: {
     fontSize: 14,

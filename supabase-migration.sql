@@ -13,17 +13,19 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Таблица стилистов с геолокацией
+-- Таблица стилистов с геолокацией и расширенным профилем
 CREATE TABLE IF NOT EXISTS stylists (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE,
   bio TEXT,
   portfolio_images TEXT[],
-  status TEXT CHECK (status IN ('available', 'busy', 'offline')) DEFAULT 'offline',
+  status TEXT CHECK (status IN ('available', 'busy', 'offline')) DEFAULT 'available',
   latitude DOUBLE PRECISION,
   longitude DOUBLE PRECISION,
-  current_mall TEXT,
-  rating DECIMAL(3,1) DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
+  malls TEXT[], -- Массив торговых центров, в которых работает стилист
+  brands TEXT[], -- Массив брендов одежды (тэги)
+  social_links JSONB, -- Социальные сети: {"instagram": "username", "vk": "url", "telegram": "@username"}
+  work_schedule JSONB, -- График работы: {"monday": {"start": "10:00", "end": "20:00", "enabled": true}, ...}
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -107,15 +109,25 @@ BEGIN
   
   -- Если роль стилист, автоматически создаем запись в таблице stylists
   IF user_role = 'stylist' THEN
-    INSERT INTO public.stylists (user_id, bio, status, latitude, longitude, current_mall, rating)
+    INSERT INTO public.stylists (user_id, bio, status, latitude, longitude, malls, brands, social_links, work_schedule)
     VALUES (
       NEW.id,
-      'Новый стилист на платформе',
-      'offline',  -- По умолчанию офлайн, стилист сам изменит статус
-      55.7558,    -- Координаты центра Москвы по умолчанию
+      'Расскажите о себе и своем опыте работы стилистом',
+      'available',  -- По умолчанию доступен для бронирований
+      55.7558,      -- Координаты центра Москвы по умолчанию
       37.6173,
-      'Не указан',
-      0.0         -- Начальный рейтинг
+      ARRAY[]::TEXT[], -- Пустой массив ТЦ (заполнит стилист)
+      ARRAY[]::TEXT[], -- Пустой массив брендов (заполнит стилист)
+      '{}'::JSONB,     -- Пустой объект соцсетей (заполнит стилист)
+      jsonb_build_object(
+        'monday', jsonb_build_object('enabled', true, 'start', '10:00', 'end', '20:00'),
+        'tuesday', jsonb_build_object('enabled', true, 'start', '10:00', 'end', '20:00'),
+        'wednesday', jsonb_build_object('enabled', true, 'start', '10:00', 'end', '20:00'),
+        'thursday', jsonb_build_object('enabled', true, 'start', '10:00', 'end', '20:00'),
+        'friday', jsonb_build_object('enabled', true, 'start', '10:00', 'end', '20:00'),
+        'saturday', jsonb_build_object('enabled', true, 'start', '11:00', 'end', '19:00'),
+        'sunday', jsonb_build_object('enabled', false, 'start', '10:00', 'end', '20:00')
+      )  -- Дефолтный график работы
     );
   END IF;
   
@@ -155,15 +167,25 @@ CREATE TRIGGER update_stylists_updated_at
 -- Раскомментируйте, если хотите добавить тестовых стилистов
 /*
 -- Вставка тестового пользователя-стилиста (замените UUID на реальный после регистрации)
-INSERT INTO stylists (user_id, bio, status, latitude, longitude, current_mall, rating, portfolio_images)
+INSERT INTO stylists (user_id, bio, status, latitude, longitude, malls, brands, social_links, work_schedule, portfolio_images)
 VALUES (
   '00000000-0000-0000-0000-000000000000', -- Замените на реальный UUID
   'Профессиональный стилист с опытом работы 5+ лет. Специализируюсь на casual и business стилях.',
   'available',
   55.7558, -- Москва
   37.6173,
-  'ТЦ Европейский',
-  4.8,
+  ARRAY['ТЦ Европейский', 'ТЦ Афимолл', 'ТЦ Атриум'], -- Массив ТЦ
+  ARRAY['Zara', 'H&M', 'Massimo Dutti', 'COS'], -- Бренды
+  '{"instagram": "stylist_name", "telegram": "@stylist_name"}'::JSONB, -- Соцсети
+  jsonb_build_object(
+    'monday', jsonb_build_object('enabled', true, 'start', '10:00', 'end', '20:00'),
+    'tuesday', jsonb_build_object('enabled', true, 'start', '10:00', 'end', '20:00'),
+    'wednesday', jsonb_build_object('enabled', true, 'start', '10:00', 'end', '20:00'),
+    'thursday', jsonb_build_object('enabled', true, 'start', '10:00', 'end', '20:00'),
+    'friday', jsonb_build_object('enabled', true, 'start', '10:00', 'end', '20:00'),
+    'saturday', jsonb_build_object('enabled', true, 'start', '11:00', 'end', '19:00'),
+    'sunday', jsonb_build_object('enabled', false, 'start', '10:00', 'end', '20:00')
+  ),
   ARRAY['https://example.com/photo1.jpg', 'https://example.com/photo2.jpg']
 );
 */
