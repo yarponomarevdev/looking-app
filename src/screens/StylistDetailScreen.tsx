@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
 import { useStylistStore } from '../store/stylistStore';
 import { Stylist } from '../types';
 import BookingModal from '../components/booking/BookingModal';
@@ -25,6 +25,49 @@ export default function StylistDetailScreen({ route, navigation }: any) {
     const data = await fetchStylistById(id);
     setStylist(data);
     setLoading(false);
+  };
+
+  /**
+   * Функция для открытия ссылки на социальную сеть
+   * @param platform - Платформа социальной сети
+   * @param username - Имя пользователя или номер телефона
+   */
+  const openSocialLink = async (platform: string, username: string) => {
+    let url = '';
+    
+    // Формируем правильный URL в зависимости от платформы
+    switch (platform) {
+      case 'instagram':
+        // Убираем @ если есть
+        const instaUsername = username.startsWith('@') ? username.slice(1) : username;
+        url = `https://instagram.com/${instaUsername}`;
+        break;
+      case 'vk':
+        url = `https://vk.com/${username}`;
+        break;
+      case 'telegram':
+        // Убираем @ если есть
+        const tgUsername = username.startsWith('@') ? username.slice(1) : username;
+        url = `https://t.me/${tgUsername}`;
+        break;
+      case 'whatsapp':
+        // Для WhatsApp ожидаем номер телефона
+        url = `https://wa.me/${username}`;
+        break;
+    }
+
+    try {
+      // Проверяем, можно ли открыть ссылку
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Ошибка', 'Не удалось открыть ссылку');
+      }
+    } catch (error) {
+      Alert.alert('Ошибка', 'Произошла ошибка при открытии ссылки');
+      console.error('Error opening URL:', error);
+    }
   };
 
   if (loading) {
@@ -134,26 +177,34 @@ export default function StylistDetailScreen({ route, navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Связаться</Text>
           {stylist.social_links.instagram && (
-            <TouchableOpacity style={styles.socialLink}>
-              <Text style={styles.socialIcon}>📷</Text>
+            <TouchableOpacity 
+              style={styles.socialLink}
+              onPress={() => openSocialLink('instagram', stylist.social_links.instagram!)}
+            >
               <Text style={styles.socialText}>Instagram: @{stylist.social_links.instagram}</Text>
             </TouchableOpacity>
           )}
           {stylist.social_links.vk && (
-            <TouchableOpacity style={styles.socialLink}>
-              <Text style={styles.socialIcon}>🔵</Text>
+            <TouchableOpacity 
+              style={styles.socialLink}
+              onPress={() => openSocialLink('vk', stylist.social_links.vk!)}
+            >
               <Text style={styles.socialText}>VK: {stylist.social_links.vk}</Text>
             </TouchableOpacity>
           )}
           {stylist.social_links.telegram && (
-            <TouchableOpacity style={styles.socialLink}>
-              <Text style={styles.socialIcon}>✈️</Text>
+            <TouchableOpacity 
+              style={styles.socialLink}
+              onPress={() => openSocialLink('telegram', stylist.social_links.telegram!)}
+            >
               <Text style={styles.socialText}>Telegram: {stylist.social_links.telegram}</Text>
             </TouchableOpacity>
           )}
           {stylist.social_links.whatsapp && (
-            <TouchableOpacity style={styles.socialLink}>
-              <Text style={styles.socialIcon}>💬</Text>
+            <TouchableOpacity 
+              style={styles.socialLink}
+              onPress={() => openSocialLink('whatsapp', stylist.social_links.whatsapp!)}
+            >
               <Text style={styles.socialText}>WhatsApp: {stylist.social_links.whatsapp}</Text>
             </TouchableOpacity>
           )}
@@ -340,10 +391,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
-  },
-  socialIcon: {
-    fontSize: 20,
-    marginRight: 12,
   },
   socialText: {
     fontSize: 15,
