@@ -1,9 +1,10 @@
 /**
  * Модальное окно для бронирования встречи со стилистом
  * Включает выбор даты, времени, места встречи и комментария
+ * Показывает только доступные слоты с учетом графика работы
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -13,13 +14,16 @@ import {
   TextInput, 
   ScrollView,
   Platform,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { MOSCOW_MALLS } from '../../constants/malls';
-import { useBookingStore } from '../../store/bookingStore';
+import { useBookingStore, TimeSlot } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
+import { useStylistStore } from '../../store/stylistStore';
+import { WorkSchedule } from '../../types';
 
 interface BookingModalProps {
   visible: boolean;
@@ -37,14 +41,70 @@ export default function BookingModal({
   onSuccess 
 }: BookingModalProps) {
   const { user } = useAuthStore();
-  const { createBooking, loading } = useBookingStore();
+  const { createBooking, loading, getAvailableSlots, error: bookingError } = useBookingStore();
+  const { fetchStylistById } = useStylistStore();
 
   const [date, setDate] = useState(new Date());
-  const [time, setTime] = useState(new Date());
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedMall, setSelectedMall] = useState(MOSCOW_MALLS[0]);
   const [comment, setComment] = useState('');
+  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [workSchedule, setWorkSchedule] = useState<WorkSchedule | null>(null);
+
+  // Загружаем график работы стилиста при открытии модального окна
+  useEffect(() => {
+    if (visible && stylistId) {
+      loadStylistSchedule();
+    }
+  }, [visible, stylistId]);
+
+  // Загружаем доступные слоты при изменении даты
+  useEffect(() => {
+    if (workSchedule && date) {
+      loadAvailableSlots();
+    }
+  }, [date, workSchedule]);
+
+  /**
+   * Загружает график работы стилиста
+   */
+  const loadStylistSchedule = async () => {
+    try {
+      const stylist = await fetchStylistById(stylistId);
+      if (stylist?.work_schedule) {
+        setWorkSchedule(stylist.work_schedule);
+      }
+    } catch (error) {
+      console.error('Error loading stylist schedule:', error);
+    }
+  };
+
+  /**
+   * Загружает доступные слоты для выбранной даты
+   */
+  const loadAvailableSlots = async () => {
+    if (!workSchedule) return;
+    
+    setLoadingSlots(true);
+    const bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    try {
+      const slots = await getAvailableSlots(stylistId, bookingDate, workSchedule);
+      setAvailableSlots(slots);
+      
+      // Сбрасываем выбранное время если оно стало недоступно
+      if (selectedTime && !slots.find(s => s.time === selectedTime && s.available)) {
+        setSelectedTime(null);
+      }
+    } catch (error) {
+      console.error('Error loading available slots:', error);
+      setAvailableSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!user) {
@@ -52,9 +112,14 @@ export default function BookingModal({
       return;
     }
 
+    if (!selectedTime) {
+      Alert.alert('Ошибка', 'Выберите время встречи');
+      return;
+    }
+
     // Форматируем дату и время
     const bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
-    const bookingTime = time.toTimeString().split(' ')[0].slice(0, 5); // HH:MM
+    const bookingTime = selectedTime; // HH:MM
 
     const result = await createBooking({
       client_id: user.id,
@@ -77,11 +142,18 @@ export default function BookingModal({
       
       // Сброс формы
       setDate(new Date());
-      setTime(new Date());
+      setSelectedTime(null);
       setComment('');
       setSelectedMall(MOSCOW_MALLS[0]);
     } else {
-      Alert.alert('Ошибка', 'Не удалось создать бронирование. Попробуйте снова.');
+      // Показываем конкретную ошибку из store или общее сообщение
+      Alert.alert(
+        'Ошибка', 
+        bookingError || 'Не удалось создать бронирование. Попробуйте снова.'
+      );
+      
+      // Обновляем слоты, чтобы показать актуальное состояние
+      loadAvailableSlots();
     }
   };
 
@@ -89,13 +161,7 @@ export default function BookingModal({
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setDate(selectedDate);
-    }
-  };
-
-  const onTimeChange = (_event: any, selectedTime?: Date) => {
-    setShowTimePicker(Platform.OS === 'ios');
-    if (selectedTime) {
-      setTime(selectedTime);
+      setSelectedTime(null); // Сбрасываем выбранное время при смене даты
     }
   };
 
@@ -104,13 +170,6 @@ export default function BookingModal({
       day: 'numeric',
       month: 'long',
       year: 'numeric',
-    });
-  };
-
-  const formatTime = (time: Date) => {
-    return time.toLocaleTimeString('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit',
     });
   };
 
@@ -158,23 +217,51 @@ export default function BookingModal({
               )}
             </View>
 
-            {/* Выбор времени */}
+            {/* Выбор времени - слоты */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Время встречи</Text>
-              <TouchableOpacity 
-                style={styles.input} 
-                onPress={() => setShowTimePicker(true)}
-              >
-                <Text style={styles.inputText}>🕐 {formatTime(time)}</Text>
-              </TouchableOpacity>
-              {showTimePicker && (
-                <DateTimePicker
-                  value={time}
-                  mode="time"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={onTimeChange}
-                  minuteInterval={30}
-                />
+              
+              {loadingSlots ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#6200ee" />
+                  <Text style={styles.loadingText}>Загрузка слотов...</Text>
+                </View>
+              ) : availableSlots.length === 0 ? (
+                <View style={styles.noSlotsContainer}>
+                  <Text style={styles.noSlotsText}>
+                    В этот день стилист не работает или все слоты заняты
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.slotsGrid}>
+                  {availableSlots.map((slot) => (
+                    <TouchableOpacity
+                      key={slot.time}
+                      style={[
+                        styles.slotButton,
+                        !slot.available && styles.slotButtonDisabled,
+                        selectedTime === slot.time && styles.slotButtonSelected,
+                      ]}
+                      onPress={() => slot.available && setSelectedTime(slot.time)}
+                      disabled={!slot.available}
+                    >
+                      <Text
+                        style={[
+                          styles.slotButtonText,
+                          !slot.available && styles.slotButtonTextDisabled,
+                          selectedTime === slot.time && styles.slotButtonTextSelected,
+                        ]}
+                      >
+                        {slot.time}
+                      </Text>
+                      {!slot.available && (
+                        <Text style={styles.slotStatusText}>
+                          {slot.status === 'confirmed' ? '✓' : '⏱'}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
               )}
             </View>
 
@@ -341,6 +428,68 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  noSlotsContainer: {
+    padding: 20,
+    backgroundColor: '#fff3cd',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffc107',
+  },
+  noSlotsText: {
+    fontSize: 14,
+    color: '#856404',
+    textAlign: 'center',
+  },
+  slotsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  slotButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#6200ee',
+    backgroundColor: 'white',
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  slotButtonDisabled: {
+    borderColor: '#ddd',
+    backgroundColor: '#f5f5f5',
+  },
+  slotButtonSelected: {
+    backgroundColor: '#6200ee',
+    borderColor: '#6200ee',
+  },
+  slotButtonText: {
+    fontSize: 16,
+    color: '#6200ee',
+    fontWeight: '600',
+  },
+  slotButtonTextDisabled: {
+    color: '#999',
+  },
+  slotButtonTextSelected: {
+    color: 'white',
+  },
+  slotStatusText: {
+    fontSize: 10,
+    color: '#999',
+    marginTop: 2,
   },
 });
 

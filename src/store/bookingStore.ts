@@ -5,7 +5,16 @@
 
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { Booking } from '../types';
+import { Booking, WorkSchedule } from '../types';
+
+/**
+ * Интерфейс для временного слота
+ */
+export interface TimeSlot {
+  time: string; // Формат "HH:MM"
+  available: boolean;
+  status?: 'pending' | 'confirmed';
+}
 
 interface BookingState {
   bookings: Booking[];
@@ -17,6 +26,8 @@ interface BookingState {
   updateBookingStatus: (bookingId: string, status: 'confirmed' | 'rejected' | 'completed') => Promise<boolean>;
   cancelBooking: (bookingId: string) => Promise<boolean>;
   subscribeToBookings: (userId: string, isStylist: boolean) => () => void;
+  getBookedSlots: (stylistId: string, date: string) => Promise<TimeSlot[]>;
+  getAvailableSlots: (stylistId: string, date: string, workSchedule: WorkSchedule) => Promise<TimeSlot[]>;
 }
 
 export const useBookingStore = create<BookingState>((set, get) => ({
@@ -28,6 +39,22 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     set({ loading: true, error: null });
     
     try {
+      // Проверяем доступность слота перед созданием
+      const bookedSlots = await get().getBookedSlots(
+        bookingData.stylist_id, 
+        bookingData.booking_date
+      );
+      
+      const isSlotTaken = bookedSlots.some(slot => slot.time === bookingData.booking_time);
+      
+      if (isSlotTaken) {
+        set({ 
+          error: 'Этот слот уже занят. Пожалуйста, выберите другое время.', 
+          loading: false 
+        });
+        return null;
+      }
+      
       const { data, error } = await supabase
         .from('bookings')
         .insert([{
@@ -48,7 +75,15 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         .single();
       
       if (error) {
-        set({ error: error.message, loading: false });
+        // Обрабатываем ошибку constraint нарушения
+        if (error.code === '23505') { // PostgreSQL unique constraint violation
+          set({ 
+            error: 'Этот слот был только что занят другим клиентом. Пожалуйста, выберите другое время.', 
+            loading: false 
+          });
+        } else {
+          set({ error: error.message, loading: false });
+        }
         return null;
       }
       
@@ -218,6 +253,95 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       .subscribe();
     
     return () => { supabase.removeChannel(channel); };
+  },
+
+  /**
+   * Получает занятые слоты для стилиста на конкретную дату
+   * @param stylistId - ID стилиста
+   * @param date - Дата в формате YYYY-MM-DD
+   * @returns Массив занятых временных слотов
+   */
+  getBookedSlots: async (stylistId: string, date: string): Promise<TimeSlot[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('booking_time, status')
+        .eq('stylist_id', stylistId)
+        .eq('booking_date', date)
+        .in('status', ['pending', 'confirmed'])
+        .order('booking_time', { ascending: true });
+      
+      if (error) throw error;
+      
+      return (data || []).map(booking => ({
+        time: booking.booking_time.slice(0, 5), // HH:MM
+        available: false,
+        status: booking.status as 'pending' | 'confirmed',
+      }));
+    } catch (error: any) {
+      console.error('Error fetching booked slots:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Генерирует доступные слоты с учетом графика работы и занятости
+   * @param stylistId - ID стилиста
+   * @param date - Дата в формате YYYY-MM-DD
+   * @param workSchedule - График работы стилиста
+   * @returns Массив всех слотов (доступных и занятых)
+   */
+  getAvailableSlots: async (stylistId: string, date: string, workSchedule: WorkSchedule): Promise<TimeSlot[]> => {
+    try {
+      // Определяем день недели
+      const dateObj = new Date(date + 'T00:00:00');
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[dateObj.getDay()] as keyof WorkSchedule;
+      
+      const daySchedule = workSchedule[dayName];
+      
+      // Если стилист не работает в этот день
+      if (!daySchedule || !daySchedule.enabled) {
+        return [];
+      }
+      
+      // Получаем занятые слоты
+      const bookedSlots = await get().getBookedSlots(stylistId, date);
+      const bookedTimes = new Set(bookedSlots.map(slot => slot.time));
+      
+      // Генерируем все возможные слоты с интервалом 30 минут
+      const slots: TimeSlot[] = [];
+      const [startHour, startMinute] = daySchedule.start.split(':').map(Number);
+      const [endHour, endMinute] = daySchedule.end.split(':').map(Number);
+      
+      let currentHour = startHour;
+      let currentMinute = startMinute;
+      
+      while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
+        const timeString = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
+        
+        // Проверяем, занят ли слот
+        const bookedSlot = bookedSlots.find(slot => slot.time === timeString);
+        
+        slots.push({
+          time: timeString,
+          available: !bookedTimes.has(timeString),
+          status: bookedSlot?.status,
+        });
+        
+        // Увеличиваем время на 30 минут
+        currentMinute += 30;
+        if (currentMinute >= 60) {
+          currentMinute = 0;
+          currentHour += 1;
+        }
+      }
+      
+      return slots;
+    } catch (error: any) {
+      console.error('Error generating available slots:', error);
+      return [];
+    }
   },
 }));
 
