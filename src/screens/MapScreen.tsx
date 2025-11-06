@@ -10,7 +10,9 @@ import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import * as Location from 'expo-location';
 import { useStylistStore } from '../store/stylistStore';
 import { Stylist } from '../types';
+import { MOSCOW_MALLS_WITH_COORDS } from '../constants/malls';
 import StylistBottomSheet from '../components/map/StylistBottomSheet';
+import MallStylistsBottomSheet from '../components/map/MallStylistsBottomSheet';
 import BookingModal from '../components/booking/BookingModal';
 
 export default function MapScreen({ navigation }: any) {
@@ -19,6 +21,7 @@ export default function MapScreen({ navigation }: any) {
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [selectedStylist, setSelectedStylist] = useState<Stylist | null>(null);
+  const [selectedMall, setSelectedMall] = useState<string | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
 
   useEffect(() => {
@@ -29,8 +32,8 @@ export default function MapScreen({ navigation }: any) {
   }, []);
 
   useEffect(() => {
-    if (mapLoaded && stylists.length > 0) {
-      updateMarkers();
+    if (mapLoaded) {
+      updateMallMarkers();
     }
   }, [stylists, mapLoaded]);
 
@@ -51,24 +54,27 @@ export default function MapScreen({ navigation }: any) {
     }
   };
 
-  const updateMarkers = () => {
-    const markersData = stylists.map((stylist) => ({
-      id: stylist.id,
-      lat: stylist.latitude,
-      lon: stylist.longitude,
-      name: stylist.full_name,
-      mall: stylist.malls && stylist.malls.length > 0 
-        ? (stylist.malls.length === 1 
-          ? stylist.malls[0] 
-          : `${stylist.malls[0]} и еще ${stylist.malls.length - 1}`)
-        : 'Не указан',
-      status: stylist.status,
-      avatar: stylist.avatar_url,
-    }));
+  // Метки стилистов убраны - показываем только метки торговых центров
+
+  const updateMallMarkers = () => {
+    // Подсчитываем количество стилистов для каждого ТЦ
+    const mallsData = MOSCOW_MALLS_WITH_COORDS.map((mall) => {
+      const stylistsCount = stylists.filter(s => 
+        s.malls && s.malls.includes(mall.name)
+      ).length;
+
+      return {
+        name: mall.name,
+        lat: mall.latitude,
+        lon: mall.longitude,
+        address: mall.address,
+        stylistsCount,
+      };
+    });
 
     const jsCode = `
-      if (window.updateMarkers) {
-        window.updateMarkers(${JSON.stringify(markersData)});
+      if (window.updateMallMarkers) {
+        window.updateMallMarkers(${JSON.stringify(mallsData)});
       }
       true;
     `;
@@ -83,12 +89,9 @@ export default function MapScreen({ navigation }: any) {
       if (data.type === 'mapLoaded') {
         setMapLoaded(true);
         console.log('✅ Яндекс.Карты загружены (WebView)');
-      } else if (data.type === 'markerClick') {
-        // Находим стилиста по ID и показываем bottom sheet
-        const stylist = stylists.find(s => s.id === data.stylistId);
-        if (stylist) {
-          setSelectedStylist(stylist);
-        }
+      } else if (data.type === 'mallMarkerClick') {
+        // Показываем список стилистов торгового центра
+        setSelectedMall(data.mallName);
       }
     } catch (error) {
       console.error('Ошибка обработки сообщения:', error);
@@ -97,6 +100,15 @@ export default function MapScreen({ navigation }: any) {
 
   const handleCloseBottomSheet = () => {
     setSelectedStylist(null);
+  };
+
+  const handleCloseMallBottomSheet = () => {
+    setSelectedMall(null);
+  };
+
+  const handleMallStylistPress = (stylist: Stylist) => {
+    setSelectedMall(null);
+    setSelectedStylist(stylist);
   };
 
   const handleBookPress = () => {
@@ -132,7 +144,7 @@ export default function MapScreen({ navigation }: any) {
   
   <script>
     let map;
-    let markers = [];
+    let mallMarkers = [];
     
     ymaps.ready(init);
     
@@ -159,39 +171,40 @@ export default function MapScreen({ navigation }: any) {
         type: 'mapLoaded'
       }));
       
-      // Функция для обновления маркеров
-      window.updateMarkers = function(stylistsData) {
-        // Удаляем старые маркеры
-        markers.forEach(marker => map.geoObjects.remove(marker));
-        markers = [];
+      // Функция для обновления маркеров торговых центров
+      // Метки отдельных стилистов убраны - показываем только ТЦ
+      window.updateMallMarkers = function(mallsData) {
+        // Удаляем старые маркеры ТЦ
+        mallMarkers.forEach(marker => map.geoObjects.remove(marker));
+        mallMarkers = [];
         
-        // Добавляем новые маркеры
-        stylistsData.forEach(stylist => {
-          const color = stylist.status === 'available' ? '#4CAF50' : '#FFA726';
-          
+        // Добавляем новые маркеры ТЦ - стандартные метки Яндекс.Карт
+        mallsData.forEach(mall => {
+          // Создаем метку торгового центра
           const placemark = new ymaps.Placemark(
-            [stylist.lat, stylist.lon],
+            [mall.lat, mall.lon],
             {
-              balloonContentHeader: stylist.name,
-              balloonContentBody: stylist.mall,
-              balloonContentFooter: stylist.status === 'available' ? 'Свободен' : 'Занят',
-              hintContent: stylist.name
+              balloonContentHeader: '<strong>' + mall.name + '</strong>',
+              balloonContentBody: mall.address + '<br/>Стилистов: ' + mall.stylistsCount,
+              hintContent: mall.name + ' (стилистов: ' + mall.stylistsCount + ')',
+              iconContent: String(mall.stylistsCount)
             },
             {
-              preset: 'islands#circleIcon',
-              iconColor: color
+              preset: 'islands#violetStretchyIcon',
+              iconColor: mall.stylistsCount > 0 ? '#9C27B0' : '#CCCCCC'
             }
           );
           
+          // Добавляем обработчик клика на метку
           placemark.events.add('click', function() {
             window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'markerClick',
-              stylistId: stylist.id
+              type: 'mallMarkerClick',
+              mallName: mall.name
             }));
           });
           
           map.geoObjects.add(placemark);
-          markers.push(placemark);
+          mallMarkers.push(placemark);
         });
       };
       
@@ -244,6 +257,15 @@ export default function MapScreen({ navigation }: any) {
         onClose={handleCloseBottomSheet}
         onBookPress={handleBookPress}
         onDetailsPress={handleDetailsPress}
+      />
+
+      {/* Bottom Sheet для списка стилистов торгового центра */}
+      <MallStylistsBottomSheet
+        mallName={selectedMall}
+        stylists={stylists.filter(s => s.malls && s.malls.includes(selectedMall || ''))}
+        visible={!!selectedMall}
+        onClose={handleCloseMallBottomSheet}
+        onStylistPress={handleMallStylistPress}
       />
 
       {/* Модальное окно бронирования */}

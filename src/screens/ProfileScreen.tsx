@@ -75,7 +75,6 @@ export default function ProfileScreen({ navigation }: any) {
               onPress={() => navigation.navigate('EditStylistProfile')}
             >
               <View style={styles.menuItemContent}>
-                <Text style={styles.menuIcon}>✏️</Text>
                 <Text style={styles.menuText}>Редактировать профиль</Text>
               </View>
             </TouchableOpacity>
@@ -87,7 +86,6 @@ export default function ProfileScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Notifications')}
           >
             <View style={styles.menuItemContent}>
-              <Text style={styles.menuIcon}>🔔</Text>
               <Text style={styles.menuText}>Уведомления</Text>
             </View>
             {unreadCount > 0 && <NotificationBadge count={unreadCount} />}
@@ -99,7 +97,6 @@ export default function ProfileScreen({ navigation }: any) {
             onPress={() => navigation.navigate(isStylist ? 'StylistBookings' : 'Bookings')}
           >
             <View style={styles.menuItemContent}>
-              <Text style={styles.menuIcon}>📅</Text>
               <Text style={styles.menuText}>
                 {isStylist ? 'Запросы на встречи' : 'Мои записи'}
               </Text>
@@ -190,10 +187,6 @@ const styles = StyleSheet.create({
   menuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  menuIcon: {
-    fontSize: 24,
-    marginRight: 12,
   },
   menuText: {
     fontSize: 16,
