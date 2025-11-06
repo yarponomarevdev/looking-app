@@ -415,6 +415,117 @@ CREATE TRIGGER on_booking_status_changed
   EXECUTE FUNCTION notify_booking_status_changed();
 
 -- ======================================
+-- Таблица образов стилистов (stylist looks/outfits)
+-- ======================================
+
+CREATE TABLE IF NOT EXISTS stylist_looks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stylist_id UUID REFERENCES stylists(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  image_url TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Индексы для stylist_looks
+CREATE INDEX IF NOT EXISTS idx_stylist_looks_stylist_id ON stylist_looks(stylist_id);
+CREATE INDEX IF NOT EXISTS idx_stylist_looks_created_at ON stylist_looks(created_at DESC);
+
+-- Триггер для автообновления updated_at у образов
+DROP TRIGGER IF EXISTS update_stylist_looks_updated_at ON stylist_looks;
+CREATE TRIGGER update_stylist_looks_updated_at
+  BEFORE UPDATE ON stylist_looks
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- ======================================
+-- Таблица избранных образов
+-- ======================================
+
+CREATE TABLE IF NOT EXISTS favorite_looks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  look_id UUID REFERENCES stylist_looks(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, look_id) -- Один пользователь не может добавить один образ дважды
+);
+
+-- Индексы для favorite_looks
+CREATE INDEX IF NOT EXISTS idx_favorite_looks_user_id ON favorite_looks(user_id);
+CREATE INDEX IF NOT EXISTS idx_favorite_looks_look_id ON favorite_looks(look_id);
+
+-- ======================================
+-- RLS политики для stylist_looks
+-- ======================================
+
+ALTER TABLE stylist_looks ENABLE ROW LEVEL SECURITY;
+
+-- Удаляем старые политики (если существуют)
+DROP POLICY IF EXISTS "Looks are viewable by everyone" ON stylist_looks;
+DROP POLICY IF EXISTS "Stylists can create own looks" ON stylist_looks;
+DROP POLICY IF EXISTS "Stylists can update own looks" ON stylist_looks;
+DROP POLICY IF EXISTS "Stylists can delete own looks" ON stylist_looks;
+
+-- Все могут видеть образы (независимо от статуса стилиста)
+CREATE POLICY "Looks are viewable by everyone" 
+  ON stylist_looks FOR SELECT 
+  USING (true);
+
+-- Стилисты могут создавать свои образы
+CREATE POLICY "Stylists can create own looks" 
+  ON stylist_looks FOR INSERT 
+  WITH CHECK (
+    auth.uid() IN (
+      SELECT user_id FROM stylists WHERE id = stylist_id
+    )
+  );
+
+-- Стилисты могут обновлять свои образы
+CREATE POLICY "Stylists can update own looks" 
+  ON stylist_looks FOR UPDATE 
+  USING (
+    auth.uid() IN (
+      SELECT user_id FROM stylists WHERE id = stylist_id
+    )
+  );
+
+-- Стилисты могут удалять свои образы
+CREATE POLICY "Stylists can delete own looks" 
+  ON stylist_looks FOR DELETE 
+  USING (
+    auth.uid() IN (
+      SELECT user_id FROM stylists WHERE id = stylist_id
+    )
+  );
+
+-- ======================================
+-- RLS политики для favorite_looks
+-- ======================================
+
+ALTER TABLE favorite_looks ENABLE ROW LEVEL SECURITY;
+
+-- Удаляем старые политики (если существуют)
+DROP POLICY IF EXISTS "Users can view own favorites" ON favorite_looks;
+DROP POLICY IF EXISTS "Users can add to favorites" ON favorite_looks;
+DROP POLICY IF EXISTS "Users can remove from favorites" ON favorite_looks;
+
+-- Пользователи могут видеть только свои избранные
+CREATE POLICY "Users can view own favorites" 
+  ON favorite_looks FOR SELECT 
+  USING (auth.uid() = user_id);
+
+-- Пользователи могут добавлять образы в избранное
+CREATE POLICY "Users can add to favorites" 
+  ON favorite_looks FOR INSERT 
+  WITH CHECK (auth.uid() = user_id);
+
+-- Пользователи могут удалять из избранного
+CREATE POLICY "Users can remove from favorites" 
+  ON favorite_looks FOR DELETE 
+  USING (auth.uid() = user_id);
+
+-- ======================================
 -- Готово! 
 -- После выполнения этого скрипта ваша база данных готова к работе
 -- ======================================

@@ -10,7 +10,7 @@ import { Stylist } from '../types';
 import BookingModal from '../components/booking/BookingModal';
 
 export default function StylistDetailScreen({ route, navigation }: any) {
-  const { id } = route.params;
+  const { id, selectedLookId } = route.params;
   const { fetchStylistById } = useStylistStore();
   const [stylist, setStylist] = useState<Stylist | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,6 +19,13 @@ export default function StylistDetailScreen({ route, navigation }: any) {
   useEffect(() => {
     loadStylist();
   }, [id]);
+
+  // Автоматически открываем модальное окно бронирования, если передан образ
+  useEffect(() => {
+    if (selectedLookId && stylist) {
+      setShowBookingModal(true);
+    }
+  }, [selectedLookId, stylist]);
 
   const loadStylist = async () => {
     setLoading(true);

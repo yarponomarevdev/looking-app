@@ -64,7 +64,7 @@ export interface Region {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
-  StylistDetail: { id: string };
+  StylistDetail: { id: string; selectedLookId?: string }; // Добавлен опциональный selectedLookId для перехода с образом
   Bookings: undefined;
   StylistBookings: undefined;
   Notifications: undefined;
@@ -74,6 +74,7 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   Map: undefined;
   List: undefined;
+  Feed: undefined; // Новая вкладка для ленты образов
   Profile: undefined;
 };
 
@@ -100,6 +101,27 @@ export interface Notification {
   type: 'booking_created' | 'booking_confirmed' | 'booking_rejected';
   related_booking_id?: string;
   is_read: boolean;
+  created_at: string;
+}
+
+// Интерфейс для образа стилиста
+export interface StylistLook {
+  id: string;
+  stylist_id: string;
+  title: string;
+  description: string | null;
+  image_url: string;
+  created_at: string;
+  updated_at: string;
+  stylist?: Stylist; // Информация о стилисте (для ленты)
+  is_favorited?: boolean; // Добавлен ли в избранное текущим пользователем
+}
+
+// Интерфейс для избранного образа
+export interface FavoriteLook {
+  id: string;
+  user_id: string;
+  look_id: string;
   created_at: string;
 }
 

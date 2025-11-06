@@ -23,6 +23,7 @@ import BookingsScreen from '../screens/BookingsScreen';
 import StylistBookingsScreen from '../screens/StylistBookingsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import EditStylistProfileScreen from '../screens/EditStylistProfileScreen';
+import FeedScreen from '../screens/FeedScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -44,6 +45,20 @@ function MainTabs() {
         tabBarInactiveTintColor: '#666',
       }}
     >
+      <Tab.Screen 
+        name="Feed" 
+        component={FeedScreen} 
+        options={{ 
+          title: 'Лента',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? 'images' : 'images-outline'} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }} 
+      />
       <Tab.Screen 
         name="Map" 
         component={MapScreen} 
