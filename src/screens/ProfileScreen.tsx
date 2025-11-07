@@ -12,6 +12,7 @@ import { useNotificationStore } from '../store/notificationStore';
 import { useStylistStore } from '../store/stylistStore';
 import { useLookStore } from '../store/lookStore';
 import NotificationBadge from '../components/notifications/NotificationBadge';
+import { NotificationSettings } from '../components/notifications/NotificationSettings';
 import { supabase } from '../lib/supabase';
 import { StylistLook } from '../types';
 import { useAlert } from '../components/alert/AlertProvider';
@@ -536,6 +537,9 @@ export default function ProfileScreen({ navigation }: any) {
             )}
           </View>
         )}
+
+        {/* Настройки уведомлений (только для веб) */}
+        {Platform.OS === 'web' && <NotificationSettings />}
 
         {/* Меню действий */}
         <View style={styles.menuSection}>

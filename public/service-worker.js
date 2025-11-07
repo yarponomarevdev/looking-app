@@ -1,39 +1,31 @@
 /**
- * Service Worker для PWA
- * Обеспечивает базовое кеширование и оффлайн-функциональность
+ * Service Worker для PWA с поддержкой Push-уведомлений
+ * Обрабатывает push-события и отображает уведомления
  */
 
 const CACHE_NAME = 'looking-app-v1';
-const URLS_TO_CACHE = [
+const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json',
   '/favicon.ico',
-  '/android-chrome-192x192.png',
-  '/android-chrome-512x512.png',
-  '/apple-touch-icon.png',
 ];
 
-// Установка service worker и кеширование ресурсов
+// Установка Service Worker
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Service Worker: Кеширование файлов');
-        return cache.addAll(URLS_TO_CACHE);
-      })
+      .then((cache) => cache.addAll(urlsToCache))
       .then(() => self.skipWaiting())
   );
 });
 
-// Активация service worker и очистка старого кеша
+// Активация Service Worker
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Удаление старого кеша', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -42,36 +34,92 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Стратегия кеширования: Network First, падаем на Cache
+// Обработка fetch запросов
 self.addEventListener('fetch', (event) => {
-  // Игнорируем запросы не GET
-  if (event.request.method !== 'GET') return;
-
   event.respondWith(
-    fetch(event.request)
+    caches.match(event.request)
       .then((response) => {
-        // Клонируем ответ, так как его можно использовать только один раз
-        const responseToCache = response.clone();
-
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
-        return response;
-      })
-      .catch(() => {
-        // Если сеть недоступна, пытаемся вернуть из кеша
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-
-          // Если ресурса нет в кеше, возвращаем базовый HTML для навигационных запросов
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-        });
+        if (response) {
+          return response;
+        }
+        return fetch(event.request);
       })
   );
 });
 
+// Обработка Push-уведомлений
+self.addEventListener('push', (event) => {
+  console.log('Push notification received:', event);
+  
+  let notificationData = {
+    title: 'Looking',
+    body: 'У вас новое уведомление',
+    icon: '/icon.png',
+    badge: '/favicon.png',
+    tag: 'default',
+    requireInteraction: false,
+  };
+
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      notificationData = {
+        title: data.title || notificationData.title,
+        body: data.message || data.body || notificationData.body,
+        icon: data.icon || notificationData.icon,
+        badge: data.badge || notificationData.badge,
+        tag: data.tag || data.type || notificationData.tag,
+        data: data,
+        requireInteraction: data.requireInteraction || false,
+      };
+    } catch (e) {
+      notificationData.body = event.data.text();
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(notificationData.title, {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      tag: notificationData.tag,
+      data: notificationData.data,
+      requireInteraction: notificationData.requireInteraction,
+      vibrate: [200, 100, 200],
+    })
+  );
+});
+
+// Обработка клика по уведомлению
+self.addEventListener('notificationclick', (event) => {
+  console.log('Notification clicked:', event);
+  
+  event.notification.close();
+
+  // Получаем данные из уведомления
+  const notificationData = event.notification.data || {};
+  const urlToOpen = notificationData.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Проверяем, есть ли уже открытое окно
+        for (let i = 0; i < clientList.length; i++) {
+          const client = clientList[i];
+          if (client.url === urlToOpen && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        
+        // Если нет открытого окна, открываем новое
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen);
+        }
+      })
+  );
+});
+
+// Обработка закрытия уведомления
+self.addEventListener('notificationclose', (event) => {
+  console.log('Notification closed:', event);
+});

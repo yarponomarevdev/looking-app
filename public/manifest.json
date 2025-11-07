@@ -1,12 +1,12 @@
 {
-  "name": "Looking",
+  "name": "Looking - Стилисты Москвы",
   "short_name": "Looking",
-  "description": "Looking - находите стилистов рядом с вами",
+  "description": "Найди своего стилиста в Москве",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#6200ee",
   "theme_color": "#6200ee",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
@@ -19,6 +19,54 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
     }
-  ]
+  ],
+  "categories": ["lifestyle", "business"],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Найти стилиста",
+      "short_name": "Поиск",
+      "description": "Найти стилиста на карте",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/favicon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Мои записи",
+      "short_name": "Записи",
+      "description": "Посмотреть мои записи к стилистам",
+      "url": "/?bookings=true",
+      "icons": [
+        {
+          "src": "/favicon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Уведомления",
+      "short_name": "Уведомления",
+      "description": "Посмотреть уведомления",
+      "url": "/?notifications=true",
+      "icons": [
+        {
+          "src": "/favicon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "gcm_sender_id": "103953800507"
 }
