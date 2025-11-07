@@ -38,6 +38,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   web: {
     favicon: './assets/favicon.png',
+    bundler: 'metro',
+    output: 'single',
+    // Настройки для PWA
+    meta: {
+      name: 'Looking',
+      description: 'Looking - находите стилистов рядом с вами',
+      themeColor: '#6200ee',
+    },
   },
   plugins: [
     [

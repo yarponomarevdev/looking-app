@@ -52,8 +52,19 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 4. **Запустите приложение**
 
+**Мобильная версия:**
 ```bash
 npx expo start
+```
+
+**Веб-версия:**
+```bash
+npm run web
+```
+
+**Сборка для продакшена:**
+```bash
+npm run build
 ```
 
 Отсканируйте QR код в приложении Expo Go на телефоне.
@@ -78,10 +89,53 @@ looking-app/
 │   │   └── index.ts                   # TypeScript типы
 │   └── navigation/
 │       └── AppNavigator.tsx           # Навигация
+├── assets/                            # Иконки и изображения
+├── public/                            # Статические файлы для веб
+├── scripts/                           # Утилиты и скрипты
+├── docs/                              # Документация
 ├── App.tsx                            # Точка входа
 ├── app.config.ts                      # Конфигурация Expo
 └── supabase-migration.sql             # SQL миграция для БД
 ```
+
+## 🎨 Иконки и Favicon
+
+Проект включает полную поддержку оптимизированных иконок для всех устройств и браузеров с настраиваемым скруглением углов.
+
+### Доступные команды
+
+```bash
+# Генерация всех иконок из исходного файла
+npm run generate-icons
+```
+
+### 🔘 Скругленные иконки
+
+По умолчанию большие иконки (PWA, Apple, Android) создаются со скругленными углами для современного вида.
+
+**Настройка скругления:**
+1. Откройте `scripts/generate-icons.js`
+2. Измените параметры в секции `ROUNDED_SETTINGS`:
+   - `enableRounded` - включить/выключить скругление
+   - `roundedOnlyLargeIcons` - только большие иконки или все
+   - `radiusPercent` - радиус скругления (0-50%)
+3. Запустите `npm run generate-icons`
+
+Подробное руководство: [docs/ROUNDED_ICONS_GUIDE.md](./docs/ROUNDED_ICONS_GUIDE.md)
+
+### Результат оптимизации
+- **До**: 4.0 MB (4 файла по 1 MB)
+- **После**: 1.42 MB (экономия 65%)
+- **Favicon набор**: ~165 KB для всех размеров
+
+### Поддержка
+- ✅ Desktop браузеры (Chrome, Firefox, Safari, Edge, Opera)
+- ✅ Mobile браузеры (iOS Safari, Android Chrome)
+- ✅ PWA (Progressive Web App) - установка как приложение
+- ✅ Open Graph / Twitter Cards для социальных сетей
+- ✅ Скругленные углы для современного дизайна
+
+Подробнее: [docs/ICONS_SETUP.md](./docs/ICONS_SETUP.md)
 
 ## 🧪 Тестирование
 
