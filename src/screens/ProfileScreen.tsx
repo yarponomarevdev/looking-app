@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../store/authStore';
@@ -14,6 +14,7 @@ import { useLookStore } from '../store/lookStore';
 import NotificationBadge from '../components/notifications/NotificationBadge';
 import { supabase } from '../lib/supabase';
 import { StylistLook } from '../types';
+import { useAlert } from '../components/alert/AlertProvider';
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, signOut } = useAuthStore();
@@ -26,6 +27,7 @@ export default function ProfileScreen({ navigation }: any) {
     fetchLooks, 
     removeFromFavorites 
   } = useLookStore();
+  const { showAlert } = useAlert();
   
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
@@ -137,7 +139,7 @@ export default function ProfileScreen({ navigation }: any) {
       setFavoriteLooks(formattedLooks);
     } catch (error: any) {
       console.error('Ошибка загрузки избранного:', error);
-      Alert.alert('Ошибка', 'Не удалось загрузить избранное');
+      showAlert('Ошибка', 'Не удалось загрузить избранное');
     } finally {
       setLoadingFavorites(false);
     }
@@ -171,7 +173,7 @@ export default function ProfileScreen({ navigation }: any) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Необходимо разрешение на доступ к галерее');
+      showAlert('Ошибка', 'Необходимо разрешение на доступ к галерее');
       return;
     }
 
@@ -255,9 +257,9 @@ export default function ProfileScreen({ navigation }: any) {
       }
 
       setAvatarUrl(publicUrl);
-      Alert.alert('Успешно', 'Аватар обновлен');
+      showAlert('Успешно', 'Аватар обновлен');
     } catch (error: any) {
-      Alert.alert('Ошибка', error.message);
+      showAlert('Ошибка', error.message);
     } finally {
       setUploading(false);
     }
@@ -276,7 +278,7 @@ export default function ProfileScreen({ navigation }: any) {
    * Удаление образа
    */
   const handleDeleteLook = (lookId: string) => {
-    Alert.alert(
+    showAlert(
       'Удалить образ?',
       'Это действие нельзя отменить',
       [
@@ -288,9 +290,9 @@ export default function ProfileScreen({ navigation }: any) {
             const success = await deleteLook(lookId);
             if (success) {
               await loadStylistLooks();
-              Alert.alert('Успешно', 'Образ удален');
+              showAlert('Успешно', 'Образ удален');
             } else {
-              Alert.alert('Ошибка', 'Не удалось удалить образ');
+              showAlert('Ошибка', 'Не удалось удалить образ');
             }
           },
         },
@@ -304,42 +306,29 @@ export default function ProfileScreen({ navigation }: any) {
   const handleRemoveFromFavorites = async (lookId: string) => {
     if (!user) return;
     
-    // Кроссплатформенное подтверждение
-    let confirmed = false;
-    if (Platform.OS === 'web') {
-      confirmed = window.confirm('Удалить из избранного?\nВы всегда можете добавить образ снова');
-    } else {
-      await new Promise<void>((resolve) => {
-        Alert.alert(
-          'Удалить из избранного?',
-          'Вы всегда можете добавить образ снова',
-          [
-            { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
-            {
-              text: 'Удалить',
-              style: 'destructive',
-              onPress: () => {
-                confirmed = true;
-                resolve();
-              },
+    // Подтверждение удаления
+    await new Promise<void>((resolve) => {
+      showAlert(
+        'Удалить из избранного?',
+        'Вы всегда можете добавить образ снова',
+        [
+          { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+          {
+            text: 'Удалить',
+            style: 'destructive',
+            onPress: async () => {
+              const success = await removeFromFavorites(user.id, lookId);
+              if (success) {
+                await loadFavoriteLooks();
+              } else {
+                showAlert('Ошибка', 'Не удалось удалить из избранного');
+              }
+              resolve();
             },
-          ]
-        );
-      });
-    }
-    
-    if (confirmed) {
-      const success = await removeFromFavorites(user.id, lookId);
-      if (success) {
-        await loadFavoriteLooks();
-      } else {
-        if (Platform.OS === 'web') {
-          alert('Ошибка: Не удалось удалить из избранного');
-        } else {
-          Alert.alert('Ошибка', 'Не удалось удалить из избранного');
-        }
-      }
-    }
+          },
+        ]
+      );
+    });
   };
 
   /**
@@ -353,41 +342,28 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
   const handleSignOut = async () => {
-    // Кроссплатформенное подтверждение
-    let confirmed = false;
-    if (Platform.OS === 'web') {
-      confirmed = window.confirm('Вы уверены, что хотите выйти?');
-    } else {
-      await new Promise<void>((resolve) => {
-        Alert.alert(
-          'Выход',
-          'Вы уверены, что хотите выйти?',
-          [
-            { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
-            {
-              text: 'Выйти',
-              style: 'destructive',
-              onPress: () => {
-                confirmed = true;
-                resolve();
-              },
+    // Подтверждение выхода
+    await new Promise<void>((resolve) => {
+      showAlert(
+        'Выход',
+        'Вы уверены, что хотите выйти?',
+        [
+          { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+          {
+            text: 'Выйти',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await signOut();
+              } catch (error: any) {
+                showAlert('Ошибка', error.message);
+              }
+              resolve();
             },
-          ]
-        );
-      });
-    }
-    
-    if (confirmed) {
-      try {
-        await signOut();
-      } catch (error: any) {
-        if (Platform.OS === 'web') {
-          alert(`Ошибка: ${error.message}`);
-        } else {
-          Alert.alert('Ошибка', error.message);
-        }
-      }
-    }
+          },
+        ]
+      );
+    });
   };
 
   return (

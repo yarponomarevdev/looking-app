@@ -11,7 +11,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Switch,
   ActivityIndicator,
   Image,
@@ -22,6 +21,7 @@ import { useStylistStore } from '../store/stylistStore';
 import { MOSCOW_MALLS, POPULAR_BRANDS } from '../constants/malls';
 import { Stylist, WorkSchedule, SocialLinks } from '../types';
 import { supabase } from '../lib/supabase';
+import { useAlert } from '../components/alert/AlertProvider';
 
 const DAYS_OF_WEEK = [
   { key: 'monday' as keyof WorkSchedule, label: 'Понедельник' },
@@ -36,6 +36,7 @@ const DAYS_OF_WEEK = [
 export default function EditStylistProfileScreen({ navigation, route }: any) {
   const { user } = useAuthStore();
   const { fetchStylistByUserId, updateStylist, updateStatus, fetchStylists } = useStylistStore();
+  const { showAlert } = useAlert();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -108,7 +109,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Необходимо разрешение на доступ к галерее');
+      showAlert('Ошибка', 'Необходимо разрешение на доступ к галерее');
       return;
     }
 
@@ -186,9 +187,9 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
       // Перезагружаем данные стилистов для обновления кеша
       await fetchStylists();
       
-      Alert.alert('Успешно', 'Аватар обновлен');
+      showAlert('Успешно', 'Аватар обновлен');
     } catch (error: any) {
-      Alert.alert('Ошибка', error.message);
+      showAlert('Ошибка', error.message);
     } finally {
       setUploading(false);
     }
@@ -241,7 +242,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     
     // Валидация: при статусе "Активен" обязательно нужен ТЦ
     if (status === 'active' && selectedMalls.length === 0) {
-      Alert.alert('Ошибка', 'Выберите торговый центр для активации');
+      showAlert('Ошибка', 'Выберите торговый центр для активации');
       return;
     }
 
@@ -267,11 +268,11 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     setSaving(false);
 
     if (success) {
-      Alert.alert('Успешно', 'Профиль обновлен', [
+      showAlert('Успешно', 'Профиль обновлен', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } else {
-      Alert.alert('Ошибка', 'Не удалось обновить профиль');
+      showAlert('Ошибка', 'Не удалось обновить профиль');
     }
   };
 
@@ -281,7 +282,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     // Если переключаемся на "Активен" и выбрано больше одного ТЦ, оставляем только первый
     if (newStatus === 'active' && selectedMalls.length > 1) {
       setSelectedMalls([selectedMalls[0]]);
-      Alert.alert(
+      showAlert(
         'Обратите внимание', 
         `При статусе "Активен" можно выбрать только один торговый центр. Оставлен: ${selectedMalls[0]}`
       );
@@ -289,7 +290,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     
     // Если переключаемся на "Активен" без выбранного ТЦ, показываем предупреждение
     if (newStatus === 'active' && selectedMalls.length === 0) {
-      Alert.alert(
+      showAlert(
         'Выберите торговый центр', 
         'Для активации необходимо выбрать торговый центр, в котором вы работаете'
       );

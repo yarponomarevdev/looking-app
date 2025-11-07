@@ -4,8 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuthStore } from '../store/authStore';
+import { useAlert } from '../components/alert/AlertProvider';
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -16,15 +17,16 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
 
   const { signIn, signUp } = useAuthStore();
+  const { showAlert } = useAlert();
 
   const handleAuth = async () => {
     if (!email || !password) {
-      Alert.alert('Ошибка', 'Заполните все поля');
+      showAlert('Ошибка', 'Заполните все поля');
       return;
     }
 
     if (!isLogin && !fullName) {
-      Alert.alert('Ошибка', 'Введите ваше имя');
+      showAlert('Ошибка', 'Введите ваше имя');
       return;
     }
 
@@ -34,10 +36,10 @@ export default function AuthScreen() {
         await signIn(email, password);
       } else {
         await signUp(email, password, fullName, role);
-        Alert.alert('Успех', 'Проверьте email для подтверждения регистрации');
+        showAlert('Успех', 'Проверьте email для подтверждения регистрации');
       }
     } catch (error: any) {
-      Alert.alert('Ошибка', error.message || 'Что-то пошло не так');
+      showAlert('Ошибка', error.message || 'Что-то пошло не так');
     } finally {
       setLoading(false);
     }

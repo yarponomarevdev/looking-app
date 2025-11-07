@@ -5,16 +5,18 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import { useStylistStore } from '../store/stylistStore';
 import { useLookStore } from '../store/lookStore';
 import { Stylist, StylistLook } from '../types';
 import BookingModal from '../components/booking/BookingModal';
+import { useAlert } from '../components/alert/AlertProvider';
 
 export default function StylistDetailScreen({ route, navigation }: any) {
   const { id, selectedLookId } = route.params;
   const { fetchStylistById } = useStylistStore();
   const { fetchStylistLooks } = useLookStore();
+  const { showAlert } = useAlert();
   const [stylist, setStylist] = useState<Stylist | null>(null);
   const [looks, setLooks] = useState<StylistLook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,10 +85,10 @@ export default function StylistDetailScreen({ route, navigation }: any) {
       if (canOpen) {
         await Linking.openURL(url);
       } else {
-        Alert.alert('Ошибка', 'Не удалось открыть ссылку');
+        showAlert('Ошибка', 'Не удалось открыть ссылку');
       }
     } catch (error) {
-      Alert.alert('Ошибка', 'Произошла ошибка при открытии ссылки');
+      showAlert('Ошибка', 'Произошла ошибка при открытии ссылки');
       console.error('Error opening URL:', error);
     }
   };

@@ -15,7 +15,6 @@ import {
   TextInput, 
   ScrollView,
   Platform,
-  Alert,
   ActivityIndicator
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -25,6 +24,7 @@ import { useBookingStore, TimeSlot } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { useStylistStore } from '../../store/stylistStore';
 import { WorkSchedule } from '../../types';
+import { useAlert } from '../alert/AlertProvider';
 
 interface BookingModalProps {
   visible: boolean;
@@ -48,6 +48,7 @@ export default function BookingModal({
   const { user } = useAuthStore();
   const { createBooking, loading, getAvailableSlots, error: bookingError } = useBookingStore();
   const { fetchStylistById } = useStylistStore();
+  const { showAlert } = useAlert();
 
   const [date, setDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -132,12 +133,12 @@ export default function BookingModal({
 
   const handleSubmit = async () => {
     if (!user) {
-      Alert.alert('Ошибка', 'Необходимо войти в систему');
+      showAlert('Ошибка', 'Необходимо войти в систему');
       return;
     }
 
     if (!selectedTime) {
-      Alert.alert('Ошибка', 'Выберите время встречи');
+      showAlert('Ошибка', 'Выберите время встречи');
       return;
     }
 
@@ -156,7 +157,7 @@ export default function BookingModal({
     });
 
     if (result) {
-      Alert.alert(
+      showAlert(
         'Успешно!', 
         `Запрос на встречу с ${stylistName} отправлен. Ожидайте подтверждения.`,
         [{ text: 'OK', onPress: () => {
@@ -172,7 +173,7 @@ export default function BookingModal({
       setSelectedMall(stylistMalls[0] || '');
     } else {
       // Показываем конкретную ошибку из store или общее сообщение
-      Alert.alert(
+      showAlert(
         'Ошибка', 
         bookingError || 'Не удалось создать бронирование. Попробуйте снова.'
       );

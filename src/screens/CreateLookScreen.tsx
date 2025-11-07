@@ -11,7 +11,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
@@ -22,11 +21,13 @@ import { useStylistStore } from '../store/stylistStore';
 import { useLookStore } from '../store/lookStore';
 import { supabase } from '../lib/supabase';
 import { POPULAR_BRANDS } from '../constants/malls';
+import { useAlert } from '../components/alert/AlertProvider';
 
 export default function CreateLookScreen({ navigation, route }: any) {
   const { user } = useAuthStore();
   const { fetchStylistByUserId } = useStylistStore();
   const { createLook, fetchLooks } = useLookStore();
+  const { showAlert } = useAlert();
 
   // Получаем бренды из профиля стилиста (переданные через navigation params)
   const profileBrands = route.params?.profileBrands || [];
@@ -61,7 +62,7 @@ export default function CreateLookScreen({ navigation, route }: any) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Необходимо разрешение на доступ к галерее');
+      showAlert('Ошибка', 'Необходимо разрешение на доступ к галерее');
       return;
     }
 
@@ -106,7 +107,7 @@ export default function CreateLookScreen({ navigation, route }: any) {
 
       return urlData.publicUrl;
     } catch (error: any) {
-      Alert.alert('Ошибка', error.message);
+      showAlert('Ошибка', error.message);
       return null;
     }
   };
@@ -144,7 +145,7 @@ export default function CreateLookScreen({ navigation, route }: any) {
    */
   const handleCreateLook = async () => {
     if (!stylistId || !lookImage || !lookTitle.trim()) {
-      Alert.alert('Ошибка', 'Заполните название и добавьте фото');
+      showAlert('Ошибка', 'Заполните название и добавьте фото');
       return;
     }
 
@@ -172,11 +173,11 @@ export default function CreateLookScreen({ navigation, route }: any) {
 
     if (success) {
       await fetchLooks();
-      Alert.alert('Успешно', 'Образ добавлен', [
+      showAlert('Успешно', 'Образ добавлен', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } else {
-      Alert.alert('Ошибка', 'Не удалось создать образ');
+      showAlert('Ошибка', 'Не удалось создать образ');
     }
   };
 
