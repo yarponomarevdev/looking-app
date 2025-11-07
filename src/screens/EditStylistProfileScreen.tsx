@@ -44,7 +44,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
   // Основная информация
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [bio, setBio] = useState('');
-  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [status, setStatus] = useState<'active' | 'inactive'>('inactive');
   
   // Социальные сети
   const [instagram, setInstagram] = useState('');
@@ -198,7 +198,12 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     if (selectedMalls.includes(mall)) {
       setSelectedMalls(selectedMalls.filter(m => m !== mall));
     } else {
-      setSelectedMalls([...selectedMalls, mall]);
+      // Если статус "Активен", можно выбрать только один ТЦ
+      if (status === 'active') {
+        setSelectedMalls([mall]);
+      } else {
+        setSelectedMalls([...selectedMalls, mall]);
+      }
     }
   };
 
@@ -234,9 +239,9 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
   const handleSave = async () => {
     if (!user) return;
     
-    // Валидация
-    if (selectedMalls.length === 0) {
-      Alert.alert('Ошибка', 'Выберите хотя бы один торговый центр');
+    // Валидация: при статусе "Активен" обязательно нужен ТЦ
+    if (status === 'active' && selectedMalls.length === 0) {
+      Alert.alert('Ошибка', 'Выберите торговый центр для активации');
       return;
     }
 
@@ -272,6 +277,24 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
 
   const handleStatusChange = async (newStatus: 'active' | 'inactive') => {
     if (!user) return;
+    
+    // Если переключаемся на "Активен" и выбрано больше одного ТЦ, оставляем только первый
+    if (newStatus === 'active' && selectedMalls.length > 1) {
+      setSelectedMalls([selectedMalls[0]]);
+      Alert.alert(
+        'Обратите внимание', 
+        `При статусе "Активен" можно выбрать только один торговый центр. Оставлен: ${selectedMalls[0]}`
+      );
+    }
+    
+    // Если переключаемся на "Активен" без выбранного ТЦ, показываем предупреждение
+    if (newStatus === 'active' && selectedMalls.length === 0) {
+      Alert.alert(
+        'Выберите торговый центр', 
+        'Для активации необходимо выбрать торговый центр, в котором вы работаете'
+      );
+    }
+    
     setStatus(newStatus);
     await updateStatus(user.id, newStatus);
   };
@@ -391,7 +414,11 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
       {/* Торговые центры */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Торговые центры</Text>
-        <Text style={styles.hint}>Выберите ТЦ, в которых вы работаете</Text>
+        <Text style={styles.hint}>
+          {status === 'active' 
+            ? 'При статусе "Активен" можно выбрать только один торговый центр' 
+            : 'Выберите ТЦ, в которых вы работаете'}
+        </Text>
         <View style={styles.tagContainer}>
           {MOSCOW_MALLS.map((mall) => (
             <TouchableOpacity

@@ -61,6 +61,32 @@ export default function LookCard({
           </Text>
         )}
         
+        {/* Бренды */}
+        {look.brands && look.brands.length > 0 && (
+          <View style={styles.brandsContainer}>
+            {look.brands.map((brand, index) => (
+              <View key={index} style={styles.brandTag}>
+                <Text style={styles.brandText}>{brand}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        
+        {/* Цена */}
+        {look.price !== null && look.price !== undefined && (
+          <View style={styles.priceContainer}>
+            <Text style={styles.priceLabel}>Примерная стоимость:</Text>
+            <Text style={styles.priceValue}>
+              {new Intl.NumberFormat('ru-RU', { 
+                style: 'currency', 
+                currency: 'RUB',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              }).format(look.price)}
+            </Text>
+          </View>
+        )}
+        
         {/* Информация о стилисте */}
         {look.stylist && (
           <TouchableOpacity
@@ -117,7 +143,8 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: width * 1.2, // Соотношение примерно как в Instagram
+    height: width * 0.75, // Более компактное соотношение 4:3
+    maxHeight: 500, // Ограничение для больших экранов
     backgroundColor: '#f0f0f0',
   },
   content: {
@@ -143,7 +170,43 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666',
     lineHeight: 22,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  brandsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  brandTag: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: '#f0f0f0',
+  },
+  brandText: {
+    fontSize: 12,
+    color: '#6200ee',
+    fontWeight: '600',
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+  },
+  priceLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginRight: 8,
+  },
+  priceValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '700',
   },
   stylistInfo: {
     flexDirection: 'row',

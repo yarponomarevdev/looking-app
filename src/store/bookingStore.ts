@@ -64,6 +64,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           booking_time: bookingData.booking_time,
           mall: bookingData.mall,
           comment: bookingData.comment,
+          look_id: bookingData.look_id, // Добавляем ID образа, если указан
         }])
         .select(`
           *,

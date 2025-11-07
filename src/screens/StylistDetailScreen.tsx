@@ -1,20 +1,25 @@
 /**
  * Детальный экран профиля стилиста
- * Показывает полную информацию: фото, био, портфолио, рейтинг, статус
+ * Показывает полную информацию: фото, био, образы, портфолио, статус
+ * Отображает образы стилиста с брендами и ценами
  */
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
 import { useStylistStore } from '../store/stylistStore';
-import { Stylist } from '../types';
+import { useLookStore } from '../store/lookStore';
+import { Stylist, StylistLook } from '../types';
 import BookingModal from '../components/booking/BookingModal';
 
 export default function StylistDetailScreen({ route, navigation }: any) {
   const { id, selectedLookId } = route.params;
   const { fetchStylistById } = useStylistStore();
+  const { fetchStylistLooks } = useLookStore();
   const [stylist, setStylist] = useState<Stylist | null>(null);
+  const [looks, setLooks] = useState<StylistLook[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [selectedLook, setSelectedLook] = useState<StylistLook | null>(null);
 
   useEffect(() => {
     loadStylist();
@@ -22,15 +27,24 @@ export default function StylistDetailScreen({ route, navigation }: any) {
 
   // Автоматически открываем модальное окно бронирования, если передан образ
   useEffect(() => {
-    if (selectedLookId && stylist) {
-      setShowBookingModal(true);
+    if (selectedLookId && stylist && looks.length > 0) {
+      const look = looks.find(l => l.id === selectedLookId);
+      if (look) {
+        setSelectedLook(look);
+        setShowBookingModal(true);
+      }
     }
-  }, [selectedLookId, stylist]);
+  }, [selectedLookId, stylist, looks]);
 
   const loadStylist = async () => {
     setLoading(true);
     const data = await fetchStylistById(id);
     setStylist(data);
+    
+    // Загружаем образы стилиста
+    const stylistLooks = await fetchStylistLooks(id);
+    setLooks(stylistLooks);
+    
     setLoading(false);
   };
 
@@ -75,6 +89,22 @@ export default function StylistDetailScreen({ route, navigation }: any) {
       Alert.alert('Ошибка', 'Произошла ошибка при открытии ссылки');
       console.error('Error opening URL:', error);
     }
+  };
+
+  /**
+   * Обработчик клика на образ - открывает модальное окно бронирования с привязкой к образу
+   */
+  const handleLookPress = (look: StylistLook) => {
+    setSelectedLook(look);
+    setShowBookingModal(true);
+  };
+
+  /**
+   * Обработчик закрытия модального окна - сбрасывает выбранный образ
+   */
+  const handleCloseBookingModal = () => {
+    setShowBookingModal(false);
+    setSelectedLook(null);
   };
 
   if (loading) {
@@ -218,6 +248,51 @@ export default function StylistDetailScreen({ route, navigation }: any) {
         </View>
       )}
 
+      {/* Образы стилиста */}
+      {looks && looks.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Образы</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {looks.map((look) => (
+              <TouchableOpacity
+                key={look.id}
+                style={styles.lookCard}
+                activeOpacity={0.8}
+                onPress={() => handleLookPress(look)}
+              >
+                <Image
+                  source={{ uri: look.image_url }}
+                  style={styles.lookImage}
+                />
+                <View style={styles.bookingBadge}>
+                  <Text style={styles.bookingBadgeText}>📅 Записаться</Text>
+                </View>
+                <View style={styles.lookInfo}>
+                  <Text style={styles.lookTitle} numberOfLines={1}>
+                    {look.title}
+                  </Text>
+                  {look.price && (
+                    <Text style={styles.lookPrice}>≈ {look.price.toLocaleString()} ₽</Text>
+                  )}
+                  {look.brands && look.brands.length > 0 && (
+                    <View style={styles.lookBrands}>
+                      {look.brands.slice(0, 2).map((brand, idx) => (
+                        <Text key={idx} style={styles.lookBrandTag} numberOfLines={1}>
+                          {brand}
+                        </Text>
+                      ))}
+                      {look.brands.length > 2 && (
+                        <Text style={styles.lookBrandTag}>+{look.brands.length - 2}</Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Портфолио */}
       {stylist.portfolio_images && stylist.portfolio_images.length > 0 && (
         <View style={styles.section}>
@@ -247,9 +322,11 @@ export default function StylistDetailScreen({ route, navigation }: any) {
         visible={showBookingModal}
         stylistId={stylist.id}
         stylistName={stylist.full_name}
-        onClose={() => setShowBookingModal(false)}
+        selectedLookId={selectedLook?.id}
+        selectedLookTitle={selectedLook?.title}
+        onClose={handleCloseBookingModal}
         onSuccess={() => {
-          setShowBookingModal(false);
+          handleCloseBookingModal();
           // Можно добавить навигацию к списку бронирований
         }}
       />
@@ -403,6 +480,70 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#6200ee',
     flex: 1,
+  },
+  lookCard: {
+    width: 200,
+    marginRight: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  lookImage: {
+    width: '100%',
+    height: 250,
+    resizeMode: 'cover',
+  },
+  lookInfo: {
+    padding: 12,
+  },
+  lookTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+  },
+  lookPrice: {
+    fontSize: 14,
+    color: '#6200ee',
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  lookBrands: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  lookBrandTag: {
+    fontSize: 11,
+    color: '#666',
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  bookingBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(98, 0, 238, 0.9)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  bookingBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

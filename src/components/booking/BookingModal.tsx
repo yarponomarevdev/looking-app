@@ -2,6 +2,7 @@
  * Модальное окно для бронирования встречи со стилистом
  * Включает выбор даты, времени, места встречи и комментария
  * Показывает только доступные слоты с учетом графика работы
+ * Поддерживает бронирование как с привязкой к конкретному образу, так и без
  */
 
 import React, { useState, useEffect } from 'react';
@@ -29,6 +30,8 @@ interface BookingModalProps {
   visible: boolean;
   stylistId: string;
   stylistName: string;
+  selectedLookId?: string; // ID выбранного образа (опционально)
+  selectedLookTitle?: string; // Название выбранного образа (опционально)
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -37,6 +40,8 @@ export default function BookingModal({
   visible, 
   stylistId, 
   stylistName,
+  selectedLookId,
+  selectedLookTitle,
   onClose, 
   onSuccess 
 }: BookingModalProps) {
@@ -147,6 +152,7 @@ export default function BookingModal({
       booking_time: bookingTime,
       mall: selectedMall,
       comment: comment.trim() || undefined,
+      look_id: selectedLookId, // Передаем ID образа, если выбран
     });
 
     if (result) {
@@ -215,6 +221,20 @@ export default function BookingModal({
               <Text style={styles.sectionLabel}>Стилист</Text>
               <Text style={styles.stylistName}>{stylistName}</Text>
             </View>
+
+            {/* Информация о выбранном образе */}
+            {selectedLookId && selectedLookTitle && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Выбранный образ</Text>
+                <View style={styles.lookInfoBox}>
+                  <Text style={styles.lookInfoIcon}>✨</Text>
+                  <Text style={styles.lookInfoText}>{selectedLookTitle}</Text>
+                </View>
+                <Text style={styles.lookInfoNote}>
+                  Вы записываетесь на консультацию по этому образу
+                </Text>
+              </View>
+            )}
 
             {/* Выбор даты */}
             <View style={styles.section}>
@@ -509,6 +529,31 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#999',
     marginTop: 2,
+  },
+  lookInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3e5f5',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ce93d8',
+  },
+  lookInfoIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  lookInfoText: {
+    fontSize: 16,
+    color: '#6200ee',
+    fontWeight: '600',
+    flex: 1,
+  },
+  lookInfoNote: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 6,
+    fontStyle: 'italic',
   },
 });
 

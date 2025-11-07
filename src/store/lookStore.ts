@@ -20,7 +20,7 @@ interface LookState {
   fetchStylistLooks: (stylistId: string) => Promise<StylistLook[]>;
   
   // Создание нового образа
-  createLook: (stylistId: string, title: string, description: string, imageUrl: string) => Promise<boolean>;
+  createLook: (stylistId: string, title: string, description: string, imageUrl: string, brands: string[], price: number | null) => Promise<boolean>;
   
   // Обновление образа
   updateLook: (lookId: string, title: string, description: string) => Promise<boolean>;
@@ -55,7 +55,7 @@ export const useLookStore = create<LookState>((set, get) => ({
       const { data, error } = await supabase
         .from('stylist_looks')
         .select(`
-          id, title, description, image_url, created_at, updated_at,
+          id, title, description, image_url, brands, price, created_at, updated_at,
           stylist_id,
           stylists:stylist_id (
             id, user_id, bio, status, latitude, longitude, malls, brands, social_links, work_schedule, portfolio_images,
@@ -78,6 +78,8 @@ export const useLookStore = create<LookState>((set, get) => ({
           title: item.title,
           description: item.description,
           image_url: item.image_url,
+          brands: item.brands || [],
+          price: item.price,
           created_at: item.created_at,
           updated_at: item.updated_at,
           stylist: stylistData ? {
@@ -124,7 +126,7 @@ export const useLookStore = create<LookState>((set, get) => ({
     }
   },
   
-  createLook: async (stylistId: string, title: string, description: string, imageUrl: string) => {
+  createLook: async (stylistId: string, title: string, description: string, imageUrl: string, brands: string[], price: number | null) => {
     try {
       const { error } = await supabase
         .from('stylist_looks')
@@ -133,6 +135,8 @@ export const useLookStore = create<LookState>((set, get) => ({
           title,
           description,
           image_url: imageUrl,
+          brands: brands || [],
+          price: price,
         });
       
       if (error) {

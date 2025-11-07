@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator, TextInput, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../store/authStore';
@@ -33,17 +33,12 @@ export default function ProfileScreen({ navigation }: any) {
   // Образы стилиста
   const [stylistLooks, setStylistLooks] = useState<StylistLook[]>([]);
   const [stylistId, setStylistId] = useState<string | null>(null);
+  const [stylistProfileBrands, setStylistProfileBrands] = useState<string[]>([]); // Бренды из профиля стилиста
   const [loadingLooks, setLoadingLooks] = useState(false);
   
   // Избранные образы клиента
   const [favoriteLooks, setFavoriteLooks] = useState<StylistLook[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
-  
-  // Модальное окно для создания образа
-  const [isLookModalVisible, setIsLookModalVisible] = useState(false);
-  const [newLookTitle, setNewLookTitle] = useState('');
-  const [newLookDescription, setNewLookDescription] = useState('');
-  const [newLookImage, setNewLookImage] = useState<string | null>(null);
 
   const isStylist = user?.user_metadata?.role === 'stylist';
 
@@ -58,6 +53,8 @@ export default function ProfileScreen({ navigation }: any) {
     
     if (stylist) {
       setStylistId(stylist.id);
+      // Сохраняем бренды из профиля стилиста для автозаполнения при создании образа
+      setStylistProfileBrands(stylist.brands || []);
       const looks = await fetchStylistLooks(stylist.id);
       setStylistLooks(looks);
     }
@@ -94,7 +91,7 @@ export default function ProfileScreen({ navigation }: any) {
       const { data: looks, error: looksError } = await supabase
         .from('stylist_looks')
         .select(`
-          id, title, description, image_url, created_at, updated_at,
+          id, title, description, image_url, brands, price, created_at, updated_at,
           stylist_id,
           stylists:stylist_id (
             id, user_id, bio, status, latitude, longitude, malls, brands, social_links, work_schedule, portfolio_images,
@@ -115,6 +112,8 @@ export default function ProfileScreen({ navigation }: any) {
           title: item.title,
           description: item.description,
           image_url: item.image_url,
+          brands: item.brands || [],
+          price: item.price,
           created_at: item.created_at,
           updated_at: item.updated_at,
           stylist: stylistData ? {
@@ -265,103 +264,12 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
   /**
-   * Выбор изображения для нового образа
+   * Переход к экрану создания образа
    */
-  const pickLookImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Необходимо разрешение на доступ к галерее');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.7,
+  const navigateToCreateLook = () => {
+    navigation.navigate('CreateLook', { 
+      profileBrands: stylistProfileBrands 
     });
-
-    if (!result.canceled && result.assets[0]) {
-      setNewLookImage(result.assets[0].uri);
-    }
-  };
-
-  /**
-   * Загрузка изображения образа в Supabase Storage
-   */
-  const uploadLookImage = async (uri: string): Promise<string | null> => {
-    if (!user) return null;
-
-    try {
-      const fileExt = uri.split('.').pop() || 'jpg';
-      const fileName = `look-${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
-
-      const { error: uploadError } = await supabase.storage
-        .from('looks')
-        .upload(filePath, arrayBuffer, {
-          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data: urlData } = supabase.storage
-        .from('looks')
-        .getPublicUrl(filePath);
-
-      return urlData.publicUrl;
-    } catch (error: any) {
-      Alert.alert('Ошибка', error.message);
-      return null;
-    }
-  };
-
-  /**
-   * Создание нового образа
-   */
-  const handleCreateLook = async () => {
-    if (!stylistId || !newLookImage || !newLookTitle.trim()) {
-      Alert.alert('Ошибка', 'Заполните название и добавьте фото');
-      return;
-    }
-
-    setUploading(true);
-
-    const imageUrl = await uploadLookImage(newLookImage);
-    
-    if (!imageUrl) {
-      setUploading(false);
-      return;
-    }
-
-    const success = await createLook(
-      stylistId,
-      newLookTitle.trim(),
-      newLookDescription.trim(),
-      imageUrl
-    );
-
-    setUploading(false);
-
-    if (success) {
-      await loadStylistLooks();
-      
-      setNewLookTitle('');
-      setNewLookDescription('');
-      setNewLookImage(null);
-      setIsLookModalVisible(false);
-      
-      Alert.alert('Успешно', 'Образ добавлен');
-    } else {
-      Alert.alert('Ошибка', 'Не удалось создать образ');
-    }
   };
 
   /**
@@ -598,7 +506,7 @@ export default function ProfileScreen({ navigation }: any) {
               <Text style={styles.sectionTitle}>Мои образы</Text>
               <TouchableOpacity
                 style={styles.addLookButtonSmall}
-                onPress={() => setIsLookModalVisible(true)}
+                onPress={navigateToCreateLook}
               >
                 <Text style={styles.addLookButtonSmallText}>+ Добавить</Text>
               </TouchableOpacity>
@@ -642,7 +550,7 @@ export default function ProfileScreen({ navigation }: any) {
                 </Text>
                 <TouchableOpacity
                   style={styles.addFirstLookButton}
-                  onPress={() => setIsLookModalVisible(true)}
+                  onPress={navigateToCreateLook}
                 >
                   <Text style={styles.addFirstLookButtonText}>
                     Добавить первый образ
@@ -702,83 +610,6 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.signOutButtonText}>Выйти</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Модальное окно для добавления образа */}
-      {isLookModalVisible && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Новый образ</Text>
-            
-            {/* Превью изображения */}
-            <TouchableOpacity
-              style={styles.imagePicker}
-              onPress={pickLookImage}
-            >
-              {newLookImage ? (
-                <Image
-                  source={{ uri: newLookImage }}
-                  style={styles.imagePreview}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={styles.imagePickerPlaceholder}>
-                  <Text style={styles.imagePickerText}>📷</Text>
-                  <Text style={styles.imagePickerHint}>Выберите фото</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            
-            {/* Название */}
-            <TextInput
-              style={styles.input}
-              placeholder="Название образа"
-              value={newLookTitle}
-              onChangeText={setNewLookTitle}
-              maxLength={100}
-            />
-            
-            {/* Описание */}
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Описание (опционально)"
-              value={newLookDescription}
-              onChangeText={setNewLookDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              maxLength={500}
-            />
-            
-            {/* Кнопки */}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => {
-                  setIsLookModalVisible(false);
-                  setNewLookTitle('');
-                  setNewLookDescription('');
-                  setNewLookImage(null);
-                }}
-                disabled={uploading}
-              >
-                <Text style={styles.modalButtonTextCancel}>Отмена</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSave]}
-                onPress={handleCreateLook}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text style={styles.modalButtonTextSave}>Добавить</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
     </ScrollView>
   );
 }
@@ -1021,94 +852,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#999',
     marginTop: 2,
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modal: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#333',
-    textAlign: 'center',
-  },
-  imagePicker: {
-    width: '100%',
-    height: 250,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 16,
-    backgroundColor: '#f5f5f5',
-  },
-  imagePreview: {
-    width: '100%',
-    height: '100%',
-  },
-  imagePickerPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imagePickerText: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
-  imagePickerHint: {
-    fontSize: 14,
-    color: '#666',
-  },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalButtonCancel: {
-    backgroundColor: '#f5f5f5',
-  },
-  modalButtonSave: {
-    backgroundColor: '#6200ee',
-  },
-  modalButtonTextCancel: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalButtonTextSave: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 

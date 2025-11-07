@@ -24,6 +24,7 @@ import StylistBookingsScreen from '../screens/StylistBookingsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import EditStylistProfileScreen from '../screens/EditStylistProfileScreen';
 import FeedScreen from '../screens/FeedScreen';
+import CreateLookScreen from '../screens/CreateLookScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -156,6 +157,11 @@ export default function AppNavigator() {
               name="EditStylistProfile" 
               component={EditStylistProfileScreen} 
               options={{ title: 'Редактировать профиль' }} 
+            />
+            <Stack.Screen 
+              name="CreateLook" 
+              component={CreateLookScreen} 
+              options={{ title: 'Создать образ' }} 
             />
           </>
         )}
