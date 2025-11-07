@@ -35,9 +35,17 @@ export function InstallPrompt() {
     // Только для веб-платформы
     if (Platform.OS !== 'web') return;
 
+    console.log('[PWA Install] Инициализация компонента');
+
     // Проверка iOS
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isMobileAndroid = /android/.test(userAgent);
+    const isMobile = isIOSDevice || isMobileAndroid;
+    
+    console.log('[PWA Install] User Agent:', userAgent);
+    console.log('[PWA Install] iOS:', isIOSDevice, '| Android:', isMobileAndroid, '| Mobile:', isMobile);
+    
     setIsIOS(isIOSDevice);
 
     // Проверка, что приложение уже установлено
@@ -46,20 +54,45 @@ export function InstallPrompt() {
       window.matchMedia('(display-mode: standalone)').matches;
     setIsStandalone(isInStandaloneMode);
 
-    // Если уже установлено, не показываем промпт
-    if (isInStandaloneMode) return;
+    console.log('[PWA Install] Standalone режим:', isInStandaloneMode);
 
-    // Проверяем, был ли промпт уже показан ранее
-    const wasPromptDismissed = localStorage.getItem('pwa-install-dismissed');
-    if (wasPromptDismissed) return;
+    // Если уже установлено, не показываем промпт
+    if (isInStandaloneMode) {
+      console.log('[PWA Install] Приложение уже установлено, промпт не показываем');
+      return;
+    }
+
+    // Проверяем, был ли промпт уже показан ранее (и не прошло ли 30 дней)
+    const dismissedTimeStr = localStorage.getItem('pwa-install-dismissed');
+    if (dismissedTimeStr) {
+      const dismissedTime = parseInt(dismissedTimeStr, 10);
+      const currentTime = new Date().getTime();
+      
+      if (currentTime < dismissedTime) {
+        console.log('[PWA Install] Промпт был закрыт ранее, не показываем до:', new Date(dismissedTime));
+        return;
+      } else {
+        // Время прошло, очищаем флаг
+        console.log('[PWA Install] Время ожидания прошло, очищаем флаг');
+        localStorage.removeItem('pwa-install-dismissed');
+      }
+    }
+
+    // Показываем только на мобильных устройствах
+    if (!isMobile) {
+      console.log('[PWA Install] Не мобильное устройство, промпт не показываем');
+      return;
+    }
 
     // Для Android: слушаем событие beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
+      console.log('[PWA Install] Событие beforeinstallprompt получено (Android)');
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       
       // Показываем промпт через 2 секунды после загрузки
       setTimeout(() => {
+        console.log('[PWA Install] Показываем Android промпт');
         setShowPrompt(true);
       }, 2000);
     };
@@ -68,7 +101,9 @@ export function InstallPrompt() {
 
     // Для iOS: показываем через 2 секунды с анимацией стрелки
     if (isIOSDevice) {
+      console.log('[PWA Install] iOS устройство, показываем промпт через 2 сек');
       setTimeout(() => {
+        console.log('[PWA Install] Показываем iOS промпт');
         setShowPrompt(true);
         startBounceAnimation();
       }, 2000);

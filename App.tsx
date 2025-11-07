@@ -12,6 +12,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { supabase } from './src/lib/supabase';
 import { AlertProvider } from './src/components/alert/AlertProvider';
 import { InstallPrompt } from './src/components/pwa/install-prompt';
+import { TestPrompt } from './src/components/pwa/test-prompt';
 
 export default function App() {
   const { loading, initialize } = useAuthStore();
@@ -91,6 +92,7 @@ export default function App() {
     <AlertProvider>
       <AppNavigator />
       <InstallPrompt />
+      <TestPrompt />
       <StatusBar style="auto" />
     </AlertProvider>
   );
