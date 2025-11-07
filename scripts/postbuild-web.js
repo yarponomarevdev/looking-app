@@ -51,7 +51,8 @@ function postBuild() {
     'android-chrome-192x192.png',
     'android-chrome-512x512.png',
     'mstile-150x150.png',
-    'manifest.json'
+    'manifest.json',
+    'service-worker.js'
   ];
   
   // Копируем каждый файл
