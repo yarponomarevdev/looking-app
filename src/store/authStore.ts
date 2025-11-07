@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 
 interface AuthState {
   session: Session | null;
@@ -37,10 +38,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   
   signUp: async (email, password, fullName, role) => {
+    // Определяем redirect URL в зависимости от платформы
+    const redirectTo = Platform.OS === 'web' 
+      ? 'https://looking-web.vercel.app/auth/callback'
+      : 'lookingapp://auth/callback';
+    
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, role } }
+      options: { 
+        data: { full_name: fullName, role },
+        emailRedirectTo: redirectTo
+      }
     });
     if (error) throw error;
   },
