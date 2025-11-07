@@ -17,16 +17,20 @@ export default function App() {
   useEffect(() => {
     initialize();
 
-    // Обработка deep links для email confirmation
-    const handleDeepLink = async (event: { url: string }) => {
-      const url = event.url;
-      
-      // Проверяем, является ли это auth callback
-      if (url && url.includes('auth/callback')) {
-        // Извлекаем параметры из URL
+    // Обработка deep links и hash parameters для email confirmation
+    const handleAuthCallback = async (url: string) => {
+      try {
+        // Проверяем hash параметры (для веб)
+        const hashMatch = url.match(/#access_token=([^&]+)/);
+        const hashRefreshMatch = url.match(/&refresh_token=([^&]+)/);
+        
+        // Проверяем query параметры (для мобильного)
         const urlObj = new URL(url);
-        const accessToken = urlObj.searchParams.get('access_token');
-        const refreshToken = urlObj.searchParams.get('refresh_token');
+        const queryAccessToken = urlObj.searchParams.get('access_token');
+        const queryRefreshToken = urlObj.searchParams.get('refresh_token');
+        
+        const accessToken = hashMatch?.[1] || queryAccessToken;
+        const refreshToken = hashRefreshMatch?.[1] || queryRefreshToken;
         
         if (accessToken && refreshToken) {
           // Устанавливаем сессию через Supabase
@@ -34,27 +38,38 @@ export default function App() {
             access_token: accessToken,
             refresh_token: refreshToken,
           });
+          
+          // Очищаем URL от токенов (для веб)
+          if (Platform.OS === 'web' && window.history) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
         }
+      } catch (error) {
+        console.error('Error handling auth callback:', error);
       }
     };
 
     // Для веб-версии проверяем URL в браузере
     if (Platform.OS === 'web') {
       const url = window.location.href;
-      if (url.includes('auth/callback')) {
-        handleDeepLink({ url });
+      if (url.includes('access_token')) {
+        handleAuthCallback(url);
       }
     } else {
       // Для мобильных платформ используем Linking API
       // Обработка начального URL (когда приложение открывается по ссылке)
       Linking.getInitialURL().then((url) => {
-        if (url) {
-          handleDeepLink({ url });
+        if (url && url.includes('access_token')) {
+          handleAuthCallback(url);
         }
       });
 
       // Слушатель для deep links (когда приложение уже открыто)
-      const subscription = Linking.addEventListener('url', handleDeepLink);
+      const subscription = Linking.addEventListener('url', (event) => {
+        if (event.url && event.url.includes('access_token')) {
+          handleAuthCallback(event.url);
+        }
+      });
 
       return () => {
         subscription.remove();
