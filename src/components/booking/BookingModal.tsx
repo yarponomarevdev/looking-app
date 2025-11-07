@@ -240,20 +240,47 @@ export default function BookingModal({
             {/* Выбор даты */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Дата встречи</Text>
-              <TouchableOpacity 
-                style={styles.input} 
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text style={styles.inputText}>📅 {formatDate(date)}</Text>
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={date}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={onDateChange}
-                  minimumDate={new Date()}
+              {Platform.OS === 'web' ? (
+                // Нативный HTML5 date picker для веб
+                <input
+                  type="date"
+                  value={date.toISOString().split('T')[0]}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    const selectedDate = new Date(e.target.value + 'T00:00:00');
+                    setDate(selectedDate);
+                    setSelectedTime(null);
+                  }}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#ddd',
+                    borderRadius: 8,
+                    padding: 14,
+                    backgroundColor: '#f9f9f9',
+                    fontSize: 16,
+                    color: '#333',
+                    width: '100%',
+                    fontFamily: 'inherit',
+                  }}
                 />
+              ) : (
+                <>
+                  <TouchableOpacity 
+                    style={styles.input} 
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text style={styles.inputText}>📅 {formatDate(date)}</Text>
+                  </TouchableOpacity>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={date}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={onDateChange}
+                      minimumDate={new Date()}
+                    />
+                  )}
+                </>
               )}
             </View>
 
