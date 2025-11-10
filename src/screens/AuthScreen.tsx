@@ -3,8 +3,9 @@
  * Содержит табы для входа и регистрации
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { useAlert } from '../components/alert/AlertProvider';
 
@@ -16,10 +17,20 @@ export default function AuthScreen() {
   const [role, setRole] = useState<'client' | 'stylist'>('client');
   const [loading, setLoading] = useState(false);
 
-  const { signIn, signUp } = useAuthStore();
+  const navigation = useNavigation();
+  const { signIn, signUp, user } = useAuthStore();
   const { showAlert } = useAlert();
 
+  // Закрываем модальное окно после успешного входа
+  useEffect(() => {
+    if (user) {
+      navigation.goBack();
+    }
+  }, [user, navigation]);
+
   const handleAuth = async () => {
+    console.log('handleAuth called', { email, password, isLogin });
+    
     if (!email || !password) {
       showAlert('Ошибка', 'Заполните все поля');
       return;
@@ -33,12 +44,17 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       if (isLogin) {
+        console.log('Attempting sign in...');
         await signIn(email, password);
+        console.log('Sign in successful');
+        // Модальное окно закроется автоматически через useEffect при изменении user
       } else {
+        console.log('Attempting sign up...');
         await signUp(email, password, fullName, role);
         showAlert('Успех', 'Проверьте email для подтверждения регистрации');
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
       showAlert('Ошибка', error.message || 'Что-то пошло не так');
     } finally {
       setLoading(false);
@@ -115,6 +131,13 @@ export default function AuthScreen() {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            onSubmitEditing={() => {
+              // Переходим к полю пароля при нажатии Enter
+              if (password) {
+                handleAuth();
+              }
+            }}
+            returnKeyType="next"
           />
           <TextInput
             style={styles.input}
@@ -123,12 +146,15 @@ export default function AuthScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            onSubmitEditing={handleAuth}
+            returnKeyType="done"
           />
 
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleAuth}
             disabled={loading}
+            activeOpacity={0.7}
           >
             <Text style={styles.buttonText}>
               {loading ? 'Загрузка...' : isLogin ? 'Войти' : 'Зарегистрироваться'}
@@ -203,6 +229,16 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer',
+      userSelect: 'none' as any,
+    }),
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+    ...(Platform.OS === 'web' && {
+      cursor: 'not-allowed' as any,
+    }),
   },
   buttonText: {
     color: 'white',
