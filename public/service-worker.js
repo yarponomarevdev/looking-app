@@ -3,15 +3,19 @@
  * Обрабатывает push-события и отображает уведомления
  */
 
-const CACHE_NAME = 'looking-app-v1';
+// Динамическая версия кэша на основе даты сборки
+const BUILD_DATE = new Date().toISOString().split('T')[0].replace(/-/g, '');
+const CACHE_NAME = `looking-app-v${BUILD_DATE}`;
 const urlsToCache = [
   '/',
   '/index.html',
   '/favicon.ico',
+  '/manifest.json',
 ];
 
 // Установка Service Worker
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing with cache:', CACHE_NAME);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
@@ -21,11 +25,13 @@ self.addEventListener('install', (event) => {
 
 // Активация Service Worker
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating with cache:', CACHE_NAME);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -34,15 +40,62 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Обработка fetch запросов
+// Обработка fetch запросов - Network First для HTML, Cache First для остального
 self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Игнорируем все не-GET запросы (POST, PUT, DELETE и т.д. не кэшируются)
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Не кэшируем запросы к API и chrome-extension
+  if (url.pathname.startsWith('/api') || 
+      url.pathname.includes('supabase') ||
+      url.protocol === 'chrome-extension:') {
+    return;
+  }
+
+  // Для HTML всегда идем в сеть сначала, чтобы получить свежие данные
+  if (request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Сохраняем в кэш только успешные ответы
+          if (response && response.status === 200 && response.type === 'basic') {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+            }).catch(err => console.warn('[SW] Cache put failed:', err));
+          }
+          return response;
+        })
+        .catch(() => {
+          // Если нет сети, пробуем кэш
+          return caches.match(request);
+        })
+    );
+    return;
+  }
+
+  // Для остальных ресурсов используем Cache First
   event.respondWith(
-    caches.match(event.request)
+    caches.match(request)
       .then((response) => {
         if (response) {
           return response;
         }
-        return fetch(event.request);
+        return fetch(request).then((response) => {
+          // Кэшируем только успешные ответы для статических ресурсов
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+            }).catch(err => console.warn('[SW] Cache put failed:', err));
+          }
+          return response;
+        });
       })
   );
 });

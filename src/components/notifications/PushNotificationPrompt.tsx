@@ -154,7 +154,6 @@ const styles = StyleSheet.create({
   },
   buttons: {
     flexDirection: 'row',
-    gap: 12,
   },
   dismissButton: {
     flex: 1,
@@ -163,6 +162,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#f5f5f5',
     alignItems: 'center',
+    marginLeft: 12,
   },
   dismissButtonText: {
     fontSize: 16,

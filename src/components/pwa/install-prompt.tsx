@@ -410,7 +410,6 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: 12,
     justifyContent: 'center',
   },
   button: {
@@ -419,6 +418,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 100,
     alignItems: 'center',
+    marginLeft: 12,
   },
   installButton: {
     backgroundColor: '#6200ee',

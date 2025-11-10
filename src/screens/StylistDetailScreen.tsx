@@ -437,12 +437,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   mallsList: {
-    gap: 4,
   },
   mallItem: {
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
+    marginBottom: 4,
   },
   section: {
     marginTop: 12,
@@ -480,13 +480,15 @@ const styles = StyleSheet.create({
   brandsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    marginHorizontal: -4,
+    marginVertical: -4,
   },
   brandTag: {
     backgroundColor: '#e8e8e8',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
+    margin: 4,
   },
   brandText: {
     fontSize: 14,
@@ -557,7 +559,8 @@ const styles = StyleSheet.create({
   lookBrands: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
+    marginHorizontal: -2,
+    marginVertical: -2,
   },
   lookBrandTag: {
     fontSize: 11,
@@ -566,6 +569,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 10,
+    margin: 2,
   },
   bookingBadge: {
     position: 'absolute',

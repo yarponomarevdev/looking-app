@@ -241,13 +241,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
   },
   button: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
+    marginLeft: 12,
   },
   primaryButton: {
     backgroundColor: '#6200ee',

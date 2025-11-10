@@ -506,7 +506,6 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     padding: 20,
-    gap: 12,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
   },
@@ -515,6 +514,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+    marginLeft: 12,
   },
   cancelButton: {
     backgroundColor: '#f5f5f5',
@@ -537,11 +537,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    gap: 10,
   },
   loadingText: {
     fontSize: 14,
     color: '#666',
+    marginLeft: 10,
   },
   noSlotsContainer: {
     padding: 20,
@@ -558,7 +558,8 @@ const styles = StyleSheet.create({
   slotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    marginHorizontal: -4,
+    marginVertical: -4,
   },
   slotButton: {
     paddingVertical: 12,
@@ -569,6 +570,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     minWidth: 80,
     alignItems: 'center',
+    margin: 4,
   },
   slotButtonDisabled: {
     borderColor: '#ddd',
@@ -628,7 +630,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    gap: 12,
   },
   successIcon: {
     fontSize: 24,
@@ -640,6 +641,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: 'white',
     fontWeight: '600',
+    marginLeft: 12,
   },
   errorBanner: {
     backgroundColor: '#f44336',
@@ -648,7 +650,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    gap: 12,
   },
   errorIcon: {
     fontSize: 24,
@@ -657,6 +658,7 @@ const styles = StyleSheet.create({
   },
   errorTextContainer: {
     flex: 1,
+    marginLeft: 12,
   },
   errorText: {
     fontSize: 15,

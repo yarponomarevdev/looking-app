@@ -233,7 +233,6 @@ const styles = StyleSheet.create({
   alertButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
     flexWrap: 'wrap',
   },
   alertButton: {
@@ -243,6 +242,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#6200ee',
     minWidth: 80,
     alignItems: 'center',
+    marginLeft: 12,
   },
   alertButtonCancel: {
     backgroundColor: '#e0e0e0',

@@ -24,6 +24,28 @@ function copyFile(source, destination) {
 }
 
 /**
+ * Обрабатывает service-worker.js и обновляет BUILD_DATE
+ */
+function processServiceWorker(sourcePath, destPath) {
+  try {
+    let content = fs.readFileSync(sourcePath, 'utf8');
+    
+    // Заменяем BUILD_DATE на текущую дату
+    const buildDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    content = content.replace(
+      /const BUILD_DATE = new Date\(\)\.toISOString\(\)\.split\('T'\)\[0\]\.replace\(/-\/g, ''\);/,
+      `const BUILD_DATE = '${buildDate}';`
+    );
+    
+    fs.writeFileSync(destPath, content);
+    const fileSize = (fs.statSync(destPath).size / 1024).toFixed(2);
+    console.log(`✅ service-worker.js (${fileSize} KB) - версия кэша: v${buildDate}`);
+  } catch (error) {
+    console.error(`❌ Ошибка при обработке service-worker.js:`, error.message);
+  }
+}
+
+/**
  * Основная функция
  */
 function postBuild() {
@@ -61,7 +83,12 @@ function postBuild() {
     const destPath = path.join(DIST_DIR, file);
     
     if (fs.existsSync(sourcePath)) {
-      copyFile(sourcePath, destPath);
+      // Service Worker обрабатываем отдельно
+      if (file === 'service-worker.js') {
+        processServiceWorker(sourcePath, destPath);
+      } else {
+        copyFile(sourcePath, destPath);
+      }
     } else {
       console.warn(`⚠️  ${file} не найден в public`);
     }

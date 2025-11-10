@@ -42,46 +42,6 @@ export default function ProfileScreen({ navigation }: any) {
 
   const isStylist = user?.user_metadata?.role === 'stylist';
 
-  // Если пользователь не авторизован, показываем экран входа
-  if (!user) {
-    return (
-      <View style={styles.guestContainer}>
-        <View style={styles.guestContent}>
-          <View style={styles.guestIconContainer}>
-            <Text style={styles.guestIcon}>👤</Text>
-          </View>
-          <Text style={styles.guestTitle}>Добро пожаловать!</Text>
-          <Text style={styles.guestDescription}>
-            Войдите или зарегистрируйтесь, чтобы получить доступ к полному функционалу приложения
-          </Text>
-          
-          <View style={styles.guestFeatures}>
-            <View style={styles.guestFeature}>
-              <Text style={styles.guestFeatureIcon}>❤️</Text>
-              <Text style={styles.guestFeatureText}>Сохраняйте избранные образы</Text>
-            </View>
-            <View style={styles.guestFeature}>
-              <Text style={styles.guestFeatureIcon}>📅</Text>
-              <Text style={styles.guestFeatureText}>Записывайтесь к стилистам</Text>
-            </View>
-            <View style={styles.guestFeature}>
-              <Text style={styles.guestFeatureIcon}>🔔</Text>
-              <Text style={styles.guestFeatureText}>Получайте уведомления о записях</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.signInButton}
-            onPress={() => navigation.navigate('Auth')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.signInButtonText}>Войти или Зарегистрироваться</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
   /**
    * Загрузка образов стилиста
    */
@@ -206,16 +166,16 @@ export default function ProfileScreen({ navigation }: any) {
   /**
    * Переход к экрану создания образа
    */
-  const navigateToCreateLook = () => {
+  const navigateToCreateLook = useCallback(() => {
     navigation.navigate('CreateLook', { 
       profileBrands: stylistProfileBrands 
     });
-  };
+  }, [navigation, stylistProfileBrands]);
 
   /**
    * Удаление образа
    */
-  const handleDeleteLook = (lookId: string) => {
+  const handleDeleteLook = useCallback((lookId: string) => {
     showAlert(
       'Удалить образ?',
       'Это действие нельзя отменить',
@@ -236,12 +196,12 @@ export default function ProfileScreen({ navigation }: any) {
         },
       ]
     );
-  };
+  }, [showAlert, deleteLook, loadStylistLooks]);
 
   /**
    * Удаление из избранного
    */
-  const handleRemoveFromFavorites = async (lookId: string) => {
+  const handleRemoveFromFavorites = useCallback(async (lookId: string) => {
     if (!user) return;
     
     // Подтверждение удаления
@@ -267,19 +227,19 @@ export default function ProfileScreen({ navigation }: any) {
         ]
       );
     });
-  };
+  }, [user, showAlert, removeFromFavorites, loadFavoriteLooks]);
 
   /**
    * Переход к стилисту с выбранным образом
    */
-  const handleBookFavoriteLook = (stylistId: string, lookId: string) => {
+  const handleBookFavoriteLook = useCallback((stylistId: string, lookId: string) => {
     navigation.navigate('StylistDetail', {
       id: stylistId,
       selectedLookId: lookId,
     });
-  };
+  }, [navigation]);
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     // Подтверждение выхода
     await new Promise<void>((resolve) => {
       showAlert(
@@ -302,7 +262,47 @@ export default function ProfileScreen({ navigation }: any) {
         ]
       );
     });
-  };
+  }, [showAlert, signOut]);
+
+  // Если пользователь не авторизован, показываем экран входа
+  if (!user) {
+    return (
+      <View style={styles.guestContainer}>
+        <View style={styles.guestContent}>
+          <View style={styles.guestIconContainer}>
+            <Text style={styles.guestIcon}>👤</Text>
+          </View>
+          <Text style={styles.guestTitle}>Добро пожаловать!</Text>
+          <Text style={styles.guestDescription}>
+            Войдите или зарегистрируйтесь, чтобы получить доступ к полному функционалу приложения
+          </Text>
+          
+          <View style={styles.guestFeatures}>
+            <View style={styles.guestFeature}>
+              <Text style={styles.guestFeatureIcon}>❤️</Text>
+              <Text style={styles.guestFeatureText}>Сохраняйте избранные образы</Text>
+            </View>
+            <View style={styles.guestFeature}>
+              <Text style={styles.guestFeatureIcon}>📅</Text>
+              <Text style={styles.guestFeatureText}>Записывайтесь к стилистам</Text>
+            </View>
+            <View style={styles.guestFeature}>
+              <Text style={styles.guestFeatureIcon}>🔔</Text>
+              <Text style={styles.guestFeatureText}>Получайте уведомления о записях</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.signInButton}
+            onPress={() => navigation.navigate('Auth')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.signInButtonText}>Войти или Зарегистрироваться</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -568,12 +568,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     marginBottom: 32,
-    gap: 16,
   },
   guestFeature: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    marginBottom: 16,
   },
   guestFeatureIcon: {
     fontSize: 24,
@@ -583,6 +582,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#333',
     lineHeight: 20,
+    marginLeft: 12,
   },
   signInButton: {
     width: '100%',

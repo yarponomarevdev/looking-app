@@ -203,13 +203,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: 8,
   },
   actionButton: {
     flex: 1,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginLeft: 8,
   },
   confirmButton: {
     backgroundColor: '#4CAF50',

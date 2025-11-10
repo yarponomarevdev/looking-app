@@ -658,7 +658,6 @@ const styles = StyleSheet.create({
   },
   statusButtons: {
     flexDirection: 'row',
-    gap: 8,
   },
   statusButton: {
     flex: 1,
@@ -668,6 +667,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     alignItems: 'center',
     backgroundColor: 'white',
+    marginLeft: 8,
   },
   statusButtonActive: {
     borderColor: '#6200ee',
@@ -684,7 +684,8 @@ const styles = StyleSheet.create({
   tagContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    marginHorizontal: -4,
+    marginVertical: -4,
   },
   tag: {
     paddingVertical: 8,
@@ -693,6 +694,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
+    margin: 4,
   },
   tagSelected: {
     backgroundColor: '#6200ee',
@@ -722,7 +724,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: '#6200ee',
-    gap: 8,
   },
   selectedTagText: {
     fontSize: 14,
@@ -733,10 +734,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     fontWeight: 'bold',
+    marginLeft: 8,
   },
   customBrandContainer: {
     flexDirection: 'row',
-    gap: 8,
     marginTop: 12,
   },
   customBrandInput: {
@@ -751,6 +752,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 20,
     justifyContent: 'center',
+    marginLeft: 8,
   },
   addButtonText: {
     color: 'white',
@@ -774,7 +776,6 @@ const styles = StyleSheet.create({
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
   timeInput: {
     flex: 1,
@@ -788,6 +789,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#666',
     fontWeight: 'bold',
+    marginHorizontal: 12,
   },
   saveButton: {
     backgroundColor: '#6200ee',

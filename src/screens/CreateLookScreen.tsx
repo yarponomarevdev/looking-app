@@ -423,8 +423,9 @@ const styles = StyleSheet.create({
   selectedBrandsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
     marginBottom: 12,
+    marginHorizontal: -4,
+    marginVertical: -4,
   },
   selectedBrandTag: {
     flexDirection: 'row',
@@ -433,7 +434,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 20,
     backgroundColor: '#6200ee',
-    gap: 6,
+    margin: 4,
   },
   selectedBrandText: {
     fontSize: 14,
@@ -444,12 +445,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     fontWeight: 'bold',
+    marginLeft: 6,
   },
   brandTagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
     marginBottom: 12,
+    marginHorizontal: -4,
+    marginVertical: -4,
   },
   brandTag: {
     paddingVertical: 8,
@@ -458,6 +461,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
+    margin: 4,
   },
   brandTagSelected: {
     backgroundColor: '#e8d5ff',
@@ -473,7 +477,6 @@ const styles = StyleSheet.create({
   },
   customBrandRow: {
     flexDirection: 'row',
-    gap: 8,
     alignItems: 'stretch',
   },
   customBrandInput: {
@@ -492,6 +495,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 100,
+    marginLeft: 8,
   },
   addBrandButtonText: {
     color: 'white',
@@ -500,7 +504,6 @@ const styles = StyleSheet.create({
   },
   buttonsContainer: {
     flexDirection: 'row',
-    gap: 12,
     marginTop: 8,
   },
   button: {
@@ -508,6 +511,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    marginLeft: 12,
   },
   cancelButton: {
     backgroundColor: '#fff',

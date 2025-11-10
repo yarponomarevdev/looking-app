@@ -38,8 +38,8 @@
       "url": "/",
       "icons": [
         {
-          "src": "/favicon-96x96.png",
-          "sizes": "96x96"
+          "src": "/favicon-48x48.png",
+          "sizes": "48x48"
         }
       ]
     },
@@ -50,8 +50,8 @@
       "url": "/?bookings=true",
       "icons": [
         {
-          "src": "/favicon-96x96.png",
-          "sizes": "96x96"
+          "src": "/favicon-48x48.png",
+          "sizes": "48x48"
         }
       ]
     },
@@ -62,8 +62,8 @@
       "url": "/?notifications=true",
       "icons": [
         {
-          "src": "/favicon-96x96.png",
-          "sizes": "96x96"
+          "src": "/favicon-48x48.png",
+          "sizes": "48x48"
         }
       ]
     }

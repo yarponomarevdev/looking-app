@@ -217,7 +217,6 @@ const styles = StyleSheet.create({
     top: height > 700 ? 50 : 20,
     left: 16,
     flexDirection: 'row',
-    gap: 12,
   },
   imageActionButton: {
     width: 40,
@@ -226,6 +225,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 12,
   },
   content: {
     padding: width < 400 ? 16 : 20,
@@ -254,13 +254,15 @@ const styles = StyleSheet.create({
   brandsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    marginHorizontal: -4,
+    marginVertical: -4,
   },
   brandTag: {
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 16,
     backgroundColor: '#f0f0f0',
+    margin: 4,
   },
   brandText: {
     fontSize: 14,
@@ -326,12 +328,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: width < 400 ? 14 : 16,
     borderRadius: 12,
-    gap: 10,
   },
   bookButtonText: {
     color: '#fff',
     fontSize: width < 400 ? 16 : 18,
     fontWeight: '600',
+    marginLeft: 10,
   },
 });
 

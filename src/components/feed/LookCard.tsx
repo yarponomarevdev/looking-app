@@ -189,10 +189,10 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   actionButton: {
     padding: 4,
+    marginLeft: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -205,14 +205,15 @@ const styles = StyleSheet.create({
   brandsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
     marginBottom: 12,
+    marginHorizontal: -4,
   },
   brandTag: {
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 12,
     backgroundColor: '#f0f0f0',
+    margin: 4,
   },
   brandText: {
     fontSize: 12,
@@ -277,12 +278,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 8,
-    gap: 8,
   },
   bookButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
   },
 });
 

@@ -187,7 +187,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   form: {
-    gap: 16,
   },
   input: {
     backgroundColor: 'white',
@@ -196,6 +195,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+    marginBottom: 16,
   },
   button: {
     backgroundColor: '#6200ee',
@@ -220,7 +220,6 @@ const styles = StyleSheet.create({
   },
   roleButtons: {
     flexDirection: 'row',
-    gap: 12,
   },
   roleButton: {
     flex: 1,
@@ -231,6 +230,7 @@ const styles = StyleSheet.create({
     borderColor: '#6200ee',
     backgroundColor: 'white',
     alignItems: 'center',
+    marginLeft: 12,
   },
   roleButtonActive: {
     backgroundColor: '#6200ee',
