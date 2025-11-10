@@ -59,7 +59,7 @@ export default function LookCard({
             >
               <Ionicons
                 name="share-outline"
-                size={26}
+                size={24}
                 color="#666"
               />
             </TouchableOpacity>
@@ -70,7 +70,7 @@ export default function LookCard({
             >
               <Ionicons
                 name={isFavorited ? 'heart' : 'heart-outline'}
-                size={28}
+                size={24}
                 color={isFavorited ? '#ff4757' : '#666'}
               />
             </TouchableOpacity>
@@ -193,6 +193,8 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   description: {
     fontSize: 15,

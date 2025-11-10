@@ -68,7 +68,7 @@ export default function LookDetailModal({
           <Image
             source={{ uri: look.image_url }}
             style={styles.image}
-            resizeMode="cover"
+            resizeMode="contain"
           />
 
           {/* Кнопки действий поверх изображения */}
@@ -191,13 +191,13 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 50,
-    right: 20,
+    top: height > 700 ? 50 : 20,
+    right: 16,
     zIndex: 10,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -209,13 +209,13 @@ const styles = StyleSheet.create({
   },
   image: {
     width: width,
-    height: height * 0.6,
+    height: Math.min(height * 0.5, 600), // Максимум 50% высоты или 600px
     backgroundColor: '#f0f0f0',
   },
   imageActions: {
     position: 'absolute',
-    top: 50,
-    left: 20,
+    top: height > 700 ? 50 : 20,
+    left: 16,
     flexDirection: 'row',
     gap: 12,
   },
@@ -223,15 +223,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   content: {
-    padding: 20,
+    padding: width < 400 ? 16 : 20,
   },
   title: {
-    fontSize: 26,
+    fontSize: width < 400 ? 22 : 26,
     fontWeight: '700',
     color: '#333',
     marginBottom: 12,
@@ -308,7 +308,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 20,
+    padding: width < 400 ? 16 : 20,
+    paddingBottom: height < 700 ? 16 : 20,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
@@ -323,13 +324,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: width < 400 ? 14 : 16,
     borderRadius: 12,
     gap: 10,
   },
   bookButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: width < 400 ? 16 : 18,
     fontWeight: '600',
   },
 });
