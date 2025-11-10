@@ -14,7 +14,7 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { StylistLook } from '../../types';
 
 const { width, height } = Dimensions.get('window');
@@ -56,7 +56,9 @@ export default function LookDetailModal({
           onPress={onClose}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="close" size={30} color="#fff" />
+          <Text>
+            <Ionicons name="close" size={30} color="#fff" />
+          </Text>
         </TouchableOpacity>
 
         <ScrollView
@@ -78,18 +80,22 @@ export default function LookDetailModal({
               style={styles.imageActionButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="share-outline" size={28} color="#fff" />
+              <Text>
+                <Ionicons name="share-outline" size={28} color="#fff" />
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={onToggleFavorite}
               style={styles.imageActionButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons
-                name={isFavorited ? 'heart' : 'heart-outline'}
-                size={30}
-                color={isFavorited ? '#ff4757' : '#fff'}
-              />
+              <Text>
+                <Ionicons
+                  name={isFavorited ? 'heart' : 'heart-outline'}
+                  size={30}
+                  color={isFavorited ? '#ff4757' : '#fff'}
+                />
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -148,7 +154,9 @@ export default function LookDetailModal({
                     />
                   ) : (
                     <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                      <Ionicons name="person" size={24} color="#999" />
+                      <Text>
+                        <Ionicons name="person" size={24} color="#999" />
+                      </Text>
                     </View>
                   )}
                   <View style={styles.stylistDetails}>
@@ -161,7 +169,9 @@ export default function LookDetailModal({
                       </Text>
                     )}
                   </View>
-                  <Ionicons name="chevron-forward" size={24} color="#999" />
+                  <Text>
+                    <Ionicons name="chevron-forward" size={24} color="#999" />
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -175,7 +185,9 @@ export default function LookDetailModal({
             onPress={onBookLook}
             activeOpacity={0.8}
           >
-            <Ionicons name="calendar" size={22} color="#fff" />
+            <Text>
+              <Ionicons name="calendar" size={22} color="#fff" />
+            </Text>
             <Text style={styles.bookButtonText}>Заказать образ</Text>
           </TouchableOpacity>
         </View>

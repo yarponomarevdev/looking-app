@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { StylistLook } from '../../types';
 
 const { width } = Dimensions.get('window');
@@ -42,10 +42,7 @@ export default function LookCard({
           style={styles.image}
           resizeMode="cover"
         />
-      </TouchableOpacity>
-      
-      {/* Информация об образе */}
-      <View style={styles.content}>
+      </TouchableOpacity><View style={styles.content}>
         {/* Заголовок и кнопки действий */}
         <View style={styles.header}>
           <Text style={styles.title} numberOfLines={2}>
@@ -57,33 +54,35 @@ export default function LookCard({
               style={styles.actionButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons
-                name="share-outline"
-                size={24}
-                color="#666"
-              />
+              <Text>
+                <Ionicons
+                  name="share-outline"
+                  size={24}
+                  color="#666"
+                />
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={onToggleFavorite}
               style={styles.actionButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons
-                name={isFavorited ? 'heart' : 'heart-outline'}
-                size={24}
-                color={isFavorited ? '#ff4757' : '#666'}
-              />
+              <Text>
+                <Ionicons
+                  name={isFavorited ? 'heart' : 'heart-outline'}
+                  size={24}
+                  color={isFavorited ? '#ff4757' : '#666'}
+                />
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-        
         {/* Описание */}
         {look.description && (
           <Text style={styles.description} numberOfLines={3}>
             {look.description}
           </Text>
         )}
-        
         {/* Бренды */}
         {look.brands && look.brands.length > 0 && (
           <View style={styles.brandsContainer}>
@@ -94,7 +93,6 @@ export default function LookCard({
             ))}
           </View>
         )}
-        
         {/* Цена */}
         {look.price !== null && look.price !== undefined && (
           <View style={styles.priceContainer}>
@@ -109,7 +107,6 @@ export default function LookCard({
             </Text>
           </View>
         )}
-        
         {/* Информация о стилисте */}
         {look.stylist && (
           <TouchableOpacity
@@ -124,7 +121,9 @@ export default function LookCard({
               />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Ionicons name="person" size={20} color="#999" />
+                <Text>
+                  <Ionicons name="person" size={20} color="#999" />
+                </Text>
               </View>
             )}
             <View style={styles.stylistDetails}>
@@ -137,17 +136,20 @@ export default function LookCard({
                 </Text>
               )}
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+            <Text>
+              <Ionicons name="chevron-forward" size={20} color="#999" />
+            </Text>
           </TouchableOpacity>
         )}
-        
         {/* Кнопка заказа образа */}
         <TouchableOpacity
           style={styles.bookButton}
           onPress={onBookLook}
           activeOpacity={0.8}
         >
-          <Ionicons name="calendar" size={20} color="#fff" />
+          <Text>
+            <Ionicons name="calendar" size={20} color="#fff" />
+          </Text>
           <Text style={styles.bookButtonText}>Заказать образ</Text>
         </TouchableOpacity>
       </View>
@@ -161,7 +163,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    }),
     elevation: 3,
   },
   image: {

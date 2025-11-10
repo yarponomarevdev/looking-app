@@ -211,10 +211,14 @@ const styles = StyleSheet.create({
     padding: 20,
     minWidth: Platform.OS === 'web' ? 300 : '100%',
     maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.25)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+    }),
     elevation: 10, // Увеличиваем elevation для Android
     zIndex: 10001, // Добавляем zIndex для веб
   },
@@ -281,10 +285,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     minWidth: Platform.OS === 'web' ? 320 : '90%',
     maxWidth: Platform.OS === 'web' ? 500 : '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.25)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+    }),
     elevation: 5,
   },
   toastSuccess: {
