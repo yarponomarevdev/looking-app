@@ -97,7 +97,7 @@
 ### Deep Links
 
 Ссылки на образы работают для всех пользователей:
-- `https://looking-app.vercel.app?stylist={id}&look={id}`
+- `https://looking-web.vercel.app?stylist={id}&look={id}`
 - Неавторизованные пользователи видят профиль стилиста
 - При попытке записаться - переход к авторизации
 

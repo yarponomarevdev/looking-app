@@ -2,7 +2,9 @@
 
 ## Проблема: Открывается Booking.com вместо приложения
 
-Если при открытии ссылки `https://looking-app.vercel.app?stylist=xxx&look=yyy` вместо приложения Looking открывается Booking.com, это может быть вызвано следующими причинами:
+**ВАЖНО:** Правильный URL приложения: `https://looking-web.vercel.app`
+
+Если при открытии ссылки `https://looking-web.vercel.app?stylist=xxx&look=yyy` вместо приложения Looking открывается Booking.com, это может быть вызвано следующими причинами:
 
 ### 1. Проблема с DNS или кэшем браузера
 
@@ -25,7 +27,7 @@
 ### 2. Проблема с развертыванием на Vercel
 
 **Проверка:**
-1. Откройте https://looking-app.vercel.app (без параметров)
+1. Откройте https://looking-web.vercel.app (без параметров)
 2. Должно открыться ваше приложение Looking
 3. Если открывается другой сайт - проверьте настройки проекта в Vercel
 
@@ -66,7 +68,7 @@
 
 ### Формат ссылки
 ```
-https://looking-app.vercel.app?stylist={STYLIST_ID}&look={LOOK_ID}
+https://looking-web.vercel.app?stylist={STYLIST_ID}&look={LOOK_ID}
 ```
 
 ### Ожидаемое поведение
@@ -96,7 +98,7 @@ Deep link parsed: {
 
 ### Шаг 1: Проверьте базовый URL
 ```
-https://looking-app.vercel.app
+https://looking-web.vercel.app
 ```
 Должно открыться приложение Looking (лента образов).
 
@@ -109,11 +111,11 @@ window.location.href
 
 ### Шаг 3: Проверьте deep link вручную
 
-1. Откройте приложение: `https://looking-app.vercel.app`
+1. Откройте приложение: `https://looking-web.vercel.app`
 2. Откройте консоль (F12)
 3. Выполните:
 ```javascript
-window.location.href = "https://looking-app.vercel.app?stylist=1a89bf8c-bb99-4a9b-8c9d-0d7435a8c1e6&look=4ceec4e3-dfc2-49b9-a5bd-eac0beffd102"
+window.location.href = "https://looking-web.vercel.app?stylist=1a89bf8c-bb99-4a9b-8c9d-0d7435a8c1e6&look=4ceec4e3-dfc2-49b9-a5bd-eac0beffd102"
 ```
 4. Приложение должно перейти к профилю стилиста с образом
 
@@ -132,7 +134,7 @@ Deep link parsed: { ... }
 
 ```typescript
 const linking = React.useMemo(() => ({
-  prefixes: ['https://looking-app.vercel.app', 'http://looking-app.vercel.app', 'looking-app://'],
+  prefixes: ['https://looking-web.vercel.app', 'http://looking-web.vercel.app', 'looking-app://'],
   config: {
     screens: {
       Main: {
@@ -160,11 +162,11 @@ const linking = React.useMemo(() => ({
       if (path.startsWith('http')) {
         urlObj = new URL(path);
       } else if (path.startsWith('/')) {
-        urlObj = new URL(`https://looking-app.vercel.app${path}`);
+        urlObj = new URL(`https://looking-web.vercel.app${path}`);
       } else if (path.includes('?')) {
-        urlObj = new URL(`https://looking-app.vercel.app/?${path.split('?')[1]}`);
+        urlObj = new URL(`https://looking-web.vercel.app/?${path.split('?')[1]}`);
       } else {
-        urlObj = new URL(`https://looking-app.vercel.app/${path}`);
+        urlObj = new URL(`https://looking-web.vercel.app/${path}`);
       }
       
       const stylistId = urlObj.searchParams.get('stylist');
@@ -220,7 +222,7 @@ const linking = React.useMemo(() => ({
 2. Откройте проект looking-app
 3. Проверьте:
    - Deployments - последний деплой должен быть успешным
-   - Domains - должен быть looking-app.vercel.app
+   - Domains - должен быть looking-web.vercel.app
    - Settings → Redirects - не должно быть redirects
 
 ### 2. Проверьте package.json скрипты
@@ -267,7 +269,7 @@ git push
 4. **Альтернативный формат ссылки:**
 Если query параметры не работают, можно попробовать path параметры:
 ```
-https://looking-app.vercel.app/stylist/1a89bf8c-bb99-4a9b-8c9d-0d7435a8c1e6?look=4ceec4e3-dfc2-49b9-a5bd-eac0beffd102
+https://looking-web.vercel.app/stylist/1a89bf8c-bb99-4a9b-8c9d-0d7435a8c1e6?look=4ceec4e3-dfc2-49b9-a5bd-eac0beffd102
 ```
 
 ## Контрольный список

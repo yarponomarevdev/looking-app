@@ -119,7 +119,7 @@ export default function AppNavigator() {
 
   // Конфигурация deep linking для шеринга образов
   const linking = React.useMemo(() => ({
-    prefixes: ['https://looking-app.vercel.app', 'http://looking-app.vercel.app', 'looking-app://'],
+    prefixes: ['https://looking-web.vercel.app', 'http://looking-web.vercel.app', 'looking-app://'],
     config: {
       screens: {
         Main: {
@@ -149,12 +149,12 @@ export default function AppNavigator() {
         if (path.startsWith('http')) {
           urlObj = new URL(path);
         } else if (path.startsWith('/')) {
-          urlObj = new URL(`https://looking-app.vercel.app${path}`);
+          urlObj = new URL(`https://looking-web.vercel.app${path}`);
         } else if (path.includes('?')) {
           // Если это query-параметры без домена
-          urlObj = new URL(`https://looking-app.vercel.app/?${path.split('?')[1]}`);
+          urlObj = new URL(`https://looking-web.vercel.app/?${path.split('?')[1]}`);
         } else {
-          urlObj = new URL(`https://looking-app.vercel.app/${path}`);
+          urlObj = new URL(`https://looking-web.vercel.app/${path}`);
         }
         
         const stylistId = urlObj.searchParams.get('stylist');

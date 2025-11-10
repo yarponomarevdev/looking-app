@@ -110,8 +110,7 @@ export default function FeedScreen() {
       }
 
       // Генерируем ссылку на образ через профиль стилиста
-      // TODO: заменить на реальный домен приложения из env
-      const shareUrl = `https://looking-app.vercel.app?stylist=${look.stylist.id}&look=${look.id}`;
+      const shareUrl = `https://looking-web.vercel.app?stylist=${look.stylist.id}&look=${look.id}`;
       
       // Копируем в буфер обмена
       await Clipboard.setStringAsync(shareUrl);

@@ -76,6 +76,17 @@ export default function BookingModal({
   }, [date, workSchedule]);
 
   /**
+   * Форматирует дату в строку YYYY-MM-DD в локальной временной зоне
+   * Избегает проблем с toISOString() который работает в UTC
+   */
+  const formatDateToString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  /**
    * Загружает график работы стилиста и его торговые центры
    */
   const loadStylistSchedule = async () => {
@@ -114,7 +125,7 @@ export default function BookingModal({
     if (!workSchedule) return;
     
     setLoadingSlots(true);
-    const bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const bookingDate = formatDateToString(date); // YYYY-MM-DD в локальной временной зоне
     
     try {
       const slots = await getAvailableSlots(stylistId, bookingDate, workSchedule);
@@ -144,7 +155,7 @@ export default function BookingModal({
     }
 
     // Форматируем дату и время
-    const bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const bookingDate = formatDateToString(date); // YYYY-MM-DD в локальной временной зоне
     const bookingTime = selectedTime; // HH:MM
 
     const result = await createBooking({
