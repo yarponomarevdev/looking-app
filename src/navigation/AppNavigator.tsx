@@ -124,9 +124,12 @@ export default function AppNavigator() {
       screens: {
         Main: {
           path: '',
+          initialRouteName: 'Feed', // Явно указываем начальный экран
           screens: {
             Feed: {
-              path: 'feed',
+              // Путь '' позволяет открывать Feed на корневом URL /
+              // А также по прямому пути React Navigation будет обрабатывать /feed
+              path: '',
               parse: {
                 stylist: (stylist: string) => stylist,
                 look: (look: string) => look,
@@ -165,49 +168,31 @@ export default function AppNavigator() {
         
         const stylistId = urlObj.searchParams.get('stylist');
         const lookId = urlObj.searchParams.get('look');
-        const pathname = urlObj.pathname;
         
-        console.log('Deep link parsed:', { path, pathname, stylistId, lookId });
+        console.log('Deep link parsed:', { path, stylistId, lookId });
         
+        // Если есть параметры stylist и look, открываем Feed с параметрами
+        // Feed сам обработает эти параметры и откроет модальное окно с образом
         if (stylistId && lookId) {
-          // Проверяем, идет ли запрос через /feed
-          if (pathname === '/feed' || pathname.startsWith('/feed')) {
-            // Для публичного доступа: открываем feed, затем переходим к стилисту
-            return {
-              routes: [
-                { 
-                  name: 'Main',
-                  state: {
-                    routes: [
-                      { name: 'Feed' }
-                    ],
-                    index: 0,
-                  }
-                },
-                {
-                  name: 'StylistDetail',
-                  params: {
-                    id: stylistId,
-                    selectedLookId: lookId,
-                  },
-                },
-              ],
-            };
-          } else {
-            // Старый формат: прямой переход к стилисту
-            return {
-              routes: [
-                { name: 'Main' },
-                {
-                  name: 'StylistDetail',
-                  params: {
-                    id: stylistId,
-                    selectedLookId: lookId,
-                  },
-                },
-              ],
-            };
-          }
+          return {
+            routes: [
+              { 
+                name: 'Main',
+                state: {
+                  routes: [
+                    { 
+                      name: 'Feed',
+                      params: {
+                        stylist: stylistId,
+                        look: lookId,
+                      }
+                    }
+                  ],
+                  index: 0,
+                }
+              },
+            ],
+          };
         }
       } catch (error) {
         console.error('Error parsing deep link:', error);

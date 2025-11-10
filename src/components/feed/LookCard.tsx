@@ -17,6 +17,7 @@ interface LookCardProps {
   onBookLook: () => void;
   onStylistPress: () => void;
   onShare: () => void; // Функция для шеринга образа
+  onViewLook?: () => void; // Функция для просмотра образа в модальном окне
 }
 
 export default function LookCard({
@@ -26,15 +27,22 @@ export default function LookCard({
   onBookLook,
   onStylistPress,
   onShare,
+  onViewLook,
 }: LookCardProps) {
   return (
     <View style={styles.card}>
       {/* Изображение образа */}
-      <Image
-        source={{ uri: look.image_url }}
-        style={styles.image}
-        resizeMode="cover"
-      />
+      <TouchableOpacity
+        activeOpacity={onViewLook ? 0.9 : 1}
+        onPress={onViewLook}
+        disabled={!onViewLook}
+      >
+        <Image
+          source={{ uri: look.image_url }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+      </TouchableOpacity>
       
       {/* Информация об образе */}
       <View style={styles.content}>

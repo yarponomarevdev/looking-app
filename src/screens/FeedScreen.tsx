@@ -4,7 +4,7 @@
  * и заказа консультации с выбранным образом
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import {
   View,
   FlatList,
@@ -22,6 +22,7 @@ import { useAuthStore } from '../store/authStore';
 import { useAlert } from '../components/alert/AlertProvider';
 import { RootStackParamList, StylistLook } from '../types';
 import LookCard from '../components/feed/LookCard';
+import LookDetailModal from '../components/feed/LookDetailModal';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -43,6 +44,10 @@ export default function FeedScreen({ route }: any) {
   const stylistId = route?.params?.stylist;
   const lookId = route?.params?.look;
 
+  // Состояние для модального окна просмотра образа
+  const [selectedLookForView, setSelectedLookForView] = useState<StylistLook | null>(null);
+  const [showLookModal, setShowLookModal] = useState(false);
+
   // Загружаем образы и избранное при монтировании
   useEffect(() => {
     fetchLooks();
@@ -54,18 +59,20 @@ export default function FeedScreen({ route }: any) {
   // Обрабатываем deep link с параметрами стилиста и образа
   useEffect(() => {
     if (stylistId && lookId && !loading && looks.length > 0) {
-      // Небольшая задержка, чтобы экран успел отобразиться
-      const timer = setTimeout(() => {
-        console.log('Opening stylist from deep link:', { stylistId, lookId });
-        navigation.navigate('StylistDetail', {
-          id: stylistId,
-          selectedLookId: lookId,
-        });
-      }, 300);
-      
-      return () => clearTimeout(timer);
+      // Находим образ по ID
+      const look = looks.find(l => l.id === lookId && l.stylist?.id === stylistId);
+      if (look) {
+        // Небольшая задержка, чтобы экран успел отобразиться
+        const timer = setTimeout(() => {
+          console.log('Opening look from deep link:', { stylistId, lookId });
+          setSelectedLookForView(look);
+          setShowLookModal(true);
+        }, 300);
+        
+        return () => clearTimeout(timer);
+      }
     }
-  }, [stylistId, lookId, loading, looks, navigation]);
+  }, [stylistId, lookId, loading, looks]);
 
   // Обновляем избранное при возврате на экран
   useFocusEffect(
@@ -130,7 +137,7 @@ export default function FeedScreen({ route }: any) {
       }
 
       // Генерируем ссылку на образ через ленту (для публичного доступа)
-      const shareUrl = `https://looking-web.vercel.app/feed?stylist=${look.stylist.id}&look=${look.id}`;
+      const shareUrl = `https://looking-web.vercel.app/?stylist=${look.stylist.id}&look=${look.id}`;
       
       // Копируем в буфер обмена
       await Clipboard.setStringAsync(shareUrl);
@@ -147,6 +154,37 @@ export default function FeedScreen({ route }: any) {
         message: 'Не удалось скопировать ссылку. Попробуйте снова.',
         type: 'error',
       });
+    }
+  };
+
+  // Открытие просмотра образа
+  const handleViewLook = (look: StylistLook) => {
+    setSelectedLookForView(look);
+    setShowLookModal(true);
+  };
+
+  // Закрытие модального окна просмотра образа
+  const handleCloseLookModal = () => {
+    setShowLookModal(false);
+    setSelectedLookForView(null);
+  };
+
+  // Обработка бронирования из модального окна
+  const handleBookFromModal = () => {
+    if (!user) {
+      showToast({
+        message: 'Войдите, чтобы записаться к стилисту',
+        type: 'info',
+        duration: 3000,
+      });
+      handleCloseLookModal();
+      navigation.navigate('Auth');
+      return;
+    }
+
+    if (selectedLookForView?.stylist) {
+      handleCloseLookModal();
+      handleBookLook(selectedLookForView.stylist.id, selectedLookForView.id);
     }
   };
 
@@ -190,6 +228,7 @@ export default function FeedScreen({ route }: any) {
             onBookLook={() => item.stylist && handleBookLook(item.stylist.id, item.id)}
             onStylistPress={() => item.stylist && handleStylistPress(item.stylist.id)}
             onShare={() => handleShare(item)}
+            onViewLook={() => handleViewLook(item)}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -203,6 +242,23 @@ export default function FeedScreen({ route }: any) {
           />
         }
         showsVerticalScrollIndicator={false}
+      />
+
+      {/* Модальное окно просмотра образа */}
+      <LookDetailModal
+        visible={showLookModal}
+        look={selectedLookForView}
+        isFavorited={selectedLookForView ? isFavorited(selectedLookForView.id) : false}
+        onClose={handleCloseLookModal}
+        onToggleFavorite={() => selectedLookForView && handleToggleFavorite(selectedLookForView.id)}
+        onBookLook={handleBookFromModal}
+        onStylistPress={() => {
+          if (selectedLookForView?.stylist) {
+            handleCloseLookModal();
+            handleStylistPress(selectedLookForView.stylist.id);
+          }
+        }}
+        onShare={() => selectedLookForView && handleShare(selectedLookForView)}
       />
     </SafeAreaView>
   );
