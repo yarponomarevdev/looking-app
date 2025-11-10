@@ -52,6 +52,24 @@ export default function App() {
       }
     };
 
+    // Обработка deep links для шеринга образов
+    const handleSharingDeepLink = (url: string) => {
+      try {
+        const urlObj = new URL(url);
+        const stylistId = urlObj.searchParams.get('stylist');
+        const lookId = urlObj.searchParams.get('look');
+        
+        if (stylistId && lookId) {
+          // Сохраняем параметры для навигации после загрузки приложения
+          // Навигация будет обработана в AppNavigator через linking config
+          return { stylistId, lookId };
+        }
+      } catch (error) {
+        console.error('Error handling sharing deep link:', error);
+      }
+      return null;
+    };
+
     // Для веб-версии проверяем URL в браузере
     if (Platform.OS === 'web') {
       const url = window.location.href;

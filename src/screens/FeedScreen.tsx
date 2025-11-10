@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   Text,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -20,7 +19,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Clipboard from 'expo-clipboard';
 import { useLookStore } from '../store/lookStore';
 import { useAuthStore } from '../store/authStore';
-import { RootStackParamList } from '../types';
+import { useAlert } from '../components/alert/AlertProvider';
+import { RootStackParamList, StylistLook } from '../types';
 import LookCard from '../components/feed/LookCard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -28,6 +28,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function FeedScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuthStore();
+  const { showToast } = useAlert();
   const {
     looks,
     loading,
@@ -65,7 +66,16 @@ export default function FeedScreen() {
 
   // Переключение избранного
   const handleToggleFavorite = async (lookId: string) => {
-    if (!user) return;
+    if (!user) {
+      // Если пользователь не авторизован, предлагаем войти
+      showToast({
+        message: 'Войдите, чтобы добавлять образы в избранное',
+        type: 'info',
+        duration: 3000,
+      });
+      navigation.navigate('Auth');
+      return;
+    }
 
     const favorited = isFavorited(lookId);
     if (favorited) {
@@ -89,28 +99,35 @@ export default function FeedScreen() {
   };
 
   // Шеринг образа - копирование ссылки в буфер обмена
-  const handleShare = async (lookId: string, lookTitle: string) => {
+  const handleShare = async (look: StylistLook) => {
     try {
-      // Генерируем ссылку на образ
+      if (!look.stylist) {
+        showToast({
+          message: 'Не удалось получить данные стилиста',
+          type: 'error',
+        });
+        return;
+      }
+
+      // Генерируем ссылку на образ через профиль стилиста
       // TODO: заменить на реальный домен приложения из env
-      const shareUrl = `https://looking-app.vercel.app/look/${lookId}`;
+      const shareUrl = `https://looking-app.vercel.app?stylist=${look.stylist.id}&look=${look.id}`;
       
       // Копируем в буфер обмена
       await Clipboard.setStringAsync(shareUrl);
       
-      // Показываем уведомление об успешном копировании
-      Alert.alert(
-        'Ссылка скопирована',
-        `Ссылка на образ "${lookTitle}" скопирована в буфер обмена`,
-        [{ text: 'OK' }]
-      );
+      // Показываем успешное уведомление через toast
+      showToast({
+        message: `Ссылка на образ "${look.title}" скопирована!`,
+        type: 'success',
+        duration: 3000,
+      });
     } catch (error) {
       console.error('Ошибка при копировании ссылки:', error);
-      Alert.alert(
-        'Ошибка',
-        'Не удалось скопировать ссылку. Попробуйте снова.',
-        [{ text: 'OK' }]
-      );
+      showToast({
+        message: 'Не удалось скопировать ссылку. Попробуйте снова.',
+        type: 'error',
+      });
     }
   };
 
@@ -153,7 +170,7 @@ export default function FeedScreen() {
             onToggleFavorite={() => handleToggleFavorite(item.id)}
             onBookLook={() => item.stylist && handleBookLook(item.stylist.id, item.id)}
             onStylistPress={() => item.stylist && handleStylistPress(item.stylist.id)}
-            onShare={() => handleShare(item.id, item.title)}
+            onShare={() => handleShare(item)}
           />
         )}
         contentContainerStyle={styles.listContent}

@@ -295,7 +295,9 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   getAvailableSlots: async (stylistId: string, date: string, workSchedule: WorkSchedule): Promise<TimeSlot[]> => {
     try {
       // Определяем день недели
-      const dateObj = new Date(date + 'T00:00:00');
+      // Парсим дату вручную, чтобы избежать проблем с временными зонами
+      const [year, month, day] = date.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, day);
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const dayName = dayNames[dateObj.getDay()] as keyof WorkSchedule;
       

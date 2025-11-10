@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import { useStylistStore } from '../store/stylistStore';
 import { useLookStore } from '../store/lookStore';
+import { useAuthStore } from '../store/authStore';
 import { Stylist, StylistLook } from '../types';
 import BookingModal from '../components/booking/BookingModal';
 import { useAlert } from '../components/alert/AlertProvider';
@@ -16,7 +17,8 @@ export default function StylistDetailScreen({ route, navigation }: any) {
   const { id, selectedLookId } = route.params;
   const { fetchStylistById } = useStylistStore();
   const { fetchStylistLooks } = useLookStore();
-  const { showAlert } = useAlert();
+  const { user } = useAuthStore();
+  const { showAlert, showToast } = useAlert();
   const [stylist, setStylist] = useState<Stylist | null>(null);
   const [looks, setLooks] = useState<StylistLook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,11 +34,21 @@ export default function StylistDetailScreen({ route, navigation }: any) {
     if (selectedLookId && stylist && looks.length > 0) {
       const look = looks.find(l => l.id === selectedLookId);
       if (look) {
+        // Проверяем авторизацию
+        if (!user) {
+          showToast({
+            message: 'Войдите, чтобы записаться к стилисту',
+            type: 'info',
+            duration: 3000,
+          });
+          navigation.navigate('Auth');
+          return;
+        }
         setSelectedLook(look);
         setShowBookingModal(true);
       }
     }
-  }, [selectedLookId, stylist, looks]);
+  }, [selectedLookId, stylist, looks, user]);
 
   const loadStylist = async () => {
     setLoading(true);
@@ -97,7 +109,34 @@ export default function StylistDetailScreen({ route, navigation }: any) {
    * Обработчик клика на образ - открывает модальное окно бронирования с привязкой к образу
    */
   const handleLookPress = (look: StylistLook) => {
+    if (!user) {
+      // Если пользователь не авторизован, предлагаем войти
+      showToast({
+        message: 'Войдите, чтобы записаться к стилисту',
+        type: 'info',
+        duration: 3000,
+      });
+      navigation.navigate('Auth');
+      return;
+    }
     setSelectedLook(look);
+    setShowBookingModal(true);
+  };
+
+  /**
+   * Обработчик кнопки "Записаться"
+   */
+  const handleBookingPress = () => {
+    if (!user) {
+      // Если пользователь не авторизован, предлагаем войти
+      showToast({
+        message: 'Войдите, чтобы записаться к стилисту',
+        type: 'info',
+        duration: 3000,
+      });
+      navigation.navigate('Auth');
+      return;
+    }
     setShowBookingModal(true);
   };
 
@@ -314,7 +353,7 @@ export default function StylistDetailScreen({ route, navigation }: any) {
       {/* Кнопка записаться */}
       <TouchableOpacity 
         style={styles.contactButton}
-        onPress={() => setShowBookingModal(true)}
+        onPress={handleBookingPress}
       >
         <Text style={styles.contactButtonText}>Записаться</Text>
       </TouchableOpacity>

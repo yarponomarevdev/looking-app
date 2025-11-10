@@ -117,27 +117,84 @@ function MainTabs() {
 export default function AppNavigator() {
   const { user } = useAuthStore();
 
+  // Конфигурация deep linking для шеринга образов
+  const linking = {
+    prefixes: ['https://looking-app.vercel.app', 'looking-app://'],
+    config: {
+      screens: {
+        Main: {
+          screens: {
+            Feed: 'feed',
+            Map: 'map',
+            List: 'list',
+            Profile: 'profile',
+          },
+        },
+        StylistDetail: {
+          path: 'stylist/:id',
+          parse: {
+            id: (id: string) => id,
+            selectedLookId: (lookId: string) => lookId,
+          },
+        },
+      },
+    },
+    // Обработчик входящих URL для query параметров
+    getStateFromPath: (path: string, config: any) => {
+      // Проверяем наличие query параметров для шеринга
+      const url = new URL(path.startsWith('http') ? path : `https://looking-app.vercel.app${path}`);
+      const stylistId = url.searchParams.get('stylist');
+      const lookId = url.searchParams.get('look');
+      
+      if (stylistId && lookId) {
+        // Возвращаем состояние навигации для перехода к профилю стилиста с образом
+        return {
+          routes: [
+            { name: 'Main' },
+            {
+              name: 'StylistDetail',
+              params: {
+                id: stylistId,
+                selectedLookId: lookId,
+              },
+            },
+          ],
+        };
+      }
+      
+      // Используем стандартную обработку для остальных путей
+      return undefined;
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator>
-        {!user ? (
-          <Stack.Screen 
-            name="Auth" 
-            component={AuthScreen} 
-            options={{ headerShown: false }} 
-          />
-        ) : (
+        {/* Публичные экраны всегда доступны */}
+        <Stack.Screen 
+          name="Main" 
+          component={MainTabs} 
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="StylistDetail" 
+          component={StylistDetailScreen} 
+          options={{ title: 'Профиль стилиста' }} 
+        />
+        
+        {/* Экран авторизации */}
+        <Stack.Screen 
+          name="Auth" 
+          component={AuthScreen} 
+          options={{ 
+            headerShown: false,
+            presentation: 'modal' // Открывается как модальное окно
+          }} 
+        />
+        
+        {/* Приватные экраны - доступны только авторизованным */}
+        {user && (
           <>
-            <Stack.Screen 
-              name="Main" 
-              component={MainTabs} 
-              options={{ headerShown: false }} 
-            />
-            <Stack.Screen 
-              name="StylistDetail" 
-              component={StylistDetailScreen} 
-              options={{ title: 'Профиль стилиста' }} 
-            />
             <Stack.Screen 
               name="Bookings" 
               component={BookingsScreen} 

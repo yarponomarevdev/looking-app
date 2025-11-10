@@ -42,6 +42,46 @@ export default function ProfileScreen({ navigation }: any) {
 
   const isStylist = user?.user_metadata?.role === 'stylist';
 
+  // Если пользователь не авторизован, показываем экран входа
+  if (!user) {
+    return (
+      <View style={styles.guestContainer}>
+        <View style={styles.guestContent}>
+          <View style={styles.guestIconContainer}>
+            <Text style={styles.guestIcon}>👤</Text>
+          </View>
+          <Text style={styles.guestTitle}>Добро пожаловать!</Text>
+          <Text style={styles.guestDescription}>
+            Войдите или зарегистрируйтесь, чтобы получить доступ к полному функционалу приложения
+          </Text>
+          
+          <View style={styles.guestFeatures}>
+            <View style={styles.guestFeature}>
+              <Text style={styles.guestFeatureIcon}>❤️</Text>
+              <Text style={styles.guestFeatureText}>Сохраняйте избранные образы</Text>
+            </View>
+            <View style={styles.guestFeature}>
+              <Text style={styles.guestFeatureIcon}>📅</Text>
+              <Text style={styles.guestFeatureText}>Записывайтесь к стилистам</Text>
+            </View>
+            <View style={styles.guestFeature}>
+              <Text style={styles.guestFeatureIcon}>🔔</Text>
+              <Text style={styles.guestFeatureText}>Получайте уведомления о записях</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.signInButton}
+            onPress={() => navigation.navigate('Auth')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.signInButtonText}>Войти или Зарегистрироваться</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   /**
    * Загрузка образов стилиста
    */
@@ -482,6 +522,84 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     alignItems: 'center',
+  },
+  // Стили для гостевого экрана
+  guestContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guestContent: {
+    width: '100%',
+    maxWidth: 400,
+    padding: 24,
+    alignItems: 'center',
+  },
+  guestIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#e8e0f7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  guestIcon: {
+    fontSize: 60,
+  },
+  guestTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  guestDescription: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  guestFeatures: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 32,
+    gap: 16,
+  },
+  guestFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  guestFeatureIcon: {
+    fontSize: 24,
+  },
+  guestFeatureText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+    lineHeight: 20,
+  },
+  signInButton: {
+    width: '100%',
+    backgroundColor: '#6200ee',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  signInButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   avatarContainer: {
     marginTop: 40,
