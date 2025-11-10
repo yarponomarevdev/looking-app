@@ -16,6 +16,7 @@ interface NotificationState {
   markAsRead: (notificationId: string) => Promise<boolean>;
   markAllAsRead: (userId: string) => Promise<boolean>;
   subscribeToNotifications: (userId: string) => () => void;
+  reset: () => void;
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
@@ -102,6 +103,15 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       .subscribe();
     
     return () => { supabase.removeChannel(channel); };
+  },
+  
+  reset: () => {
+    set({ 
+      notifications: [], 
+      unreadCount: 0, 
+      loading: false, 
+      error: null 
+    });
   },
 }));
 

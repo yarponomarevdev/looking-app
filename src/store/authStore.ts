@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
+import { useNotificationStore } from './notificationStore';
 
 interface AuthState {
   session: Session | null;
@@ -33,8 +34,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   
   signIn: async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    
+    // Сразу обновляем состояние после успешного входа
+    // Это предотвращает белый экран перед срабатыванием onAuthStateChange
+    if (data.session) {
+      set({ 
+        session: data.session, 
+        user: data.session.user 
+      });
+    }
   },
   
   signUp: async (email, password, fullName, role) => {
@@ -55,7 +65,46 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   
   signOut: async () => {
-    await supabase.auth.signOut();
+    try {
+      // Получаем текущего пользователя перед выходом
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Удаляем все push-подписки пользователя из БД
+      if (user?.id) {
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('user_id', user.id);
+      }
+      
+      // Отписываемся от push-уведомлений в браузере (только для веб)
+      if (Platform.OS === 'web' && 'serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const pushSubscription = await registration.pushManager.getSubscription();
+          if (pushSubscription) {
+            await pushSubscription.unsubscribe();
+          }
+        } catch (error) {
+          console.error('Error unsubscribing from push:', error);
+        }
+      }
+      
+      // Выполняем выход
+      await supabase.auth.signOut();
+      
+      // Очищаем локальное состояние
+      set({ session: null, user: null });
+      
+      // Очищаем состояние уведомлений
+      useNotificationStore.getState().reset();
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      // Всё равно пытаемся выйти даже при ошибках
+      await supabase.auth.signOut();
+      set({ session: null, user: null });
+      useNotificationStore.getState().reset();
+    }
   },
 }));
 

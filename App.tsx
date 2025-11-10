@@ -37,7 +37,7 @@ export default function App() {
         
         if (accessToken && refreshToken) {
           // Устанавливаем сессию через Supabase
-          await supabase.auth.setSession({
+          const { data } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
@@ -46,6 +46,9 @@ export default function App() {
           if (Platform.OS === 'web' && window.history) {
             window.history.replaceState({}, document.title, window.location.pathname);
           }
+          
+          // Сессия уже будет обработана через onAuthStateChange в initialize()
+          console.log('Email confirmation successful, session:', data.session?.user?.email);
         }
       } catch (error) {
         console.error('Error handling auth callback:', error);
