@@ -76,6 +76,12 @@ export default function App() {
       if (url.includes('access_token')) {
         handleAuthCallback(url);
       }
+      
+      // Обрабатываем deep links для шеринга (stylist + look параметры)
+      const sharingParams = handleSharingDeepLink(url);
+      if (sharingParams) {
+        console.log('Sharing deep link detected:', sharingParams);
+      }
     } else {
       // Для мобильных платформ используем Linking API
       // Обработка начального URL (когда приложение открывается по ссылке)

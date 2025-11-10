@@ -250,6 +250,7 @@ export default function BookingModal({
                     setSelectedTime(null);
                   }}
                   minDate={new Date()}
+                  workSchedule={workSchedule || undefined}
                 />
               ) : (
                 <>

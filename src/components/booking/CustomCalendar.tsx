@@ -5,17 +5,20 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { WorkSchedule } from '../../types';
 
 interface CustomCalendarProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
   minDate?: Date;
+  workSchedule?: WorkSchedule; // График работы стилиста
 }
 
 export default function CustomCalendar({ 
   selectedDate, 
   onDateChange,
-  minDate = new Date()
+  minDate = new Date(),
+  workSchedule
 }: CustomCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
 
@@ -87,10 +90,27 @@ export default function CustomCalendar({
    */
   const isDateAvailable = (date: Date | null) => {
     if (!date) return false;
+    
     // Сравниваем только даты, без времени
     const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const minDateOnly = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
-    return dateOnly >= minDateOnly;
+    
+    // Проверяем, что дата не в прошлом
+    if (dateOnly < minDateOnly) return false;
+    
+    // Если есть график работы, проверяем, работает ли стилист в этот день
+    if (workSchedule) {
+      const dayNames: Array<keyof WorkSchedule> = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[date.getDay()];
+      const daySchedule = workSchedule[dayName];
+      
+      // Если день не включен в график, дата недоступна
+      if (!daySchedule || !daySchedule.enabled) {
+        return false;
+      }
+    }
+    
+    return true;
   };
 
   /**

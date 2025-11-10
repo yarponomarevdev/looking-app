@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -118,11 +118,12 @@ export default function AppNavigator() {
   const { user } = useAuthStore();
 
   // Конфигурация deep linking для шеринга образов
-  const linking = {
-    prefixes: ['https://looking-app.vercel.app', 'looking-app://'],
+  const linking = React.useMemo(() => ({
+    prefixes: ['https://looking-app.vercel.app', 'http://looking-app.vercel.app', 'looking-app://'],
     config: {
       screens: {
         Main: {
+          path: '',
           screens: {
             Feed: 'feed',
             Map: 'map',
@@ -141,34 +142,55 @@ export default function AppNavigator() {
     },
     // Обработчик входящих URL для query параметров
     getStateFromPath: (path: string, config: any) => {
-      // Проверяем наличие query параметров для шеринга
-      const url = new URL(path.startsWith('http') ? path : `https://looking-app.vercel.app${path}`);
-      const stylistId = url.searchParams.get('stylist');
-      const lookId = url.searchParams.get('look');
-      
-      if (stylistId && lookId) {
-        // Возвращаем состояние навигации для перехода к профилю стилиста с образом
-        return {
-          routes: [
-            { name: 'Main' },
-            {
-              name: 'StylistDetail',
-              params: {
-                id: stylistId,
-                selectedLookId: lookId,
+      try {
+        // Парсим URL, обрабатывая разные форматы
+        let urlObj: URL;
+        
+        if (path.startsWith('http')) {
+          urlObj = new URL(path);
+        } else if (path.startsWith('/')) {
+          urlObj = new URL(`https://looking-app.vercel.app${path}`);
+        } else if (path.includes('?')) {
+          // Если это query-параметры без домена
+          urlObj = new URL(`https://looking-app.vercel.app/?${path.split('?')[1]}`);
+        } else {
+          urlObj = new URL(`https://looking-app.vercel.app/${path}`);
+        }
+        
+        const stylistId = urlObj.searchParams.get('stylist');
+        const lookId = urlObj.searchParams.get('look');
+        
+        console.log('Deep link parsed:', { path, stylistId, lookId });
+        
+        if (stylistId && lookId) {
+          // Возвращаем состояние навигации для перехода к профилю стилиста с образом
+          return {
+            routes: [
+              { name: 'Main' },
+              {
+                name: 'StylistDetail',
+                params: {
+                  id: stylistId,
+                  selectedLookId: lookId,
+                },
               },
-            },
-          ],
-        };
+            ],
+          };
+        }
+      } catch (error) {
+        console.error('Error parsing deep link:', error);
       }
       
       // Используем стандартную обработку для остальных путей
       return undefined;
     },
-  };
+  }), []);
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer 
+      linking={linking}
+      fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}><ActivityIndicator size="large" color="#6200ee" /></View>}
+    >
       <Stack.Navigator>
         {/* Публичные экраны всегда доступны */}
         <Stack.Screen 
