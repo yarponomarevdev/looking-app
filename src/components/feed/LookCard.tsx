@@ -16,6 +16,7 @@ interface LookCardProps {
   onToggleFavorite: () => void;
   onBookLook: () => void;
   onStylistPress: () => void;
+  onShare: () => void; // Функция для шеринга образа
 }
 
 export default function LookCard({
@@ -24,6 +25,7 @@ export default function LookCard({
   onToggleFavorite,
   onBookLook,
   onStylistPress,
+  onShare,
 }: LookCardProps) {
   return (
     <View style={styles.card}>
@@ -36,22 +38,35 @@ export default function LookCard({
       
       {/* Информация об образе */}
       <View style={styles.content}>
-        {/* Заголовок и кнопка избранного */}
+        {/* Заголовок и кнопки действий */}
         <View style={styles.header}>
           <Text style={styles.title} numberOfLines={2}>
             {look.title}
           </Text>
-          <TouchableOpacity
-            onPress={onToggleFavorite}
-            style={styles.favoriteButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name={isFavorited ? 'heart' : 'heart-outline'}
-              size={28}
-              color={isFavorited ? '#ff4757' : '#666'}
-            />
-          </TouchableOpacity>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              onPress={onShare}
+              style={styles.actionButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name="share-outline"
+                size={26}
+                color="#666"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onToggleFavorite}
+              style={styles.actionButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name={isFavorited ? 'heart' : 'heart-outline'}
+                size={28}
+                color={isFavorited ? '#ff4757' : '#666'}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
         
         {/* Описание */}
@@ -75,7 +90,7 @@ export default function LookCard({
         {/* Цена */}
         {look.price !== null && look.price !== undefined && (
           <View style={styles.priceContainer}>
-            <Text style={styles.priceLabel}>Примерная стоимость:</Text>
+            <Text style={styles.priceLabel}>Стоимость:</Text>
             <Text style={styles.priceValue}>
               {new Intl.NumberFormat('ru-RU', { 
                 style: 'currency', 
@@ -163,7 +178,12 @@ const styles = StyleSheet.create({
     color: '#333',
     marginRight: 12,
   },
-  favoriteButton: {
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {
     padding: 4,
   },
   description: {

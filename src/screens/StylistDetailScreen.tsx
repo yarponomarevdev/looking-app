@@ -274,7 +274,7 @@ export default function StylistDetailScreen({ route, navigation }: any) {
                     {look.title}
                   </Text>
                   {look.price && (
-                    <Text style={styles.lookPrice}>≈ {look.price.toLocaleString()} ₽</Text>
+                    <Text style={styles.lookPrice}>{look.price.toLocaleString()} ₽</Text>
                   )}
                   {look.brands && look.brands.length > 0 && (
                     <View style={styles.lookBrands}>

@@ -4,10 +4,11 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { Notification } from '../types';
+import { NotificationSettings } from '../components/notifications/NotificationSettings';
 
 export default function NotificationsScreen({ navigation }: any) {
   const { user } = useAuthStore();
@@ -121,6 +122,13 @@ export default function NotificationsScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Настройки push-уведомлений (только для веб) */}
+      {Platform.OS === 'web' && (
+        <View style={styles.settingsContainer}>
+          <NotificationSettings />
+        </View>
+      )}
+      
       {unreadCount > 0 && (
         <View style={styles.header}>
           <Text style={styles.headerText}>
@@ -145,6 +153,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  settingsContainer: {
+    padding: 16,
+    paddingBottom: 8,
   },
   centerContainer: {
     flex: 1,

@@ -12,10 +12,12 @@ import {
   ActivityIndicator,
   Text,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as Clipboard from 'expo-clipboard';
 import { useLookStore } from '../store/lookStore';
 import { useAuthStore } from '../store/authStore';
 import { RootStackParamList } from '../types';
@@ -86,6 +88,32 @@ export default function FeedScreen() {
     navigation.navigate('StylistDetail', { id: stylistId });
   };
 
+  // Шеринг образа - копирование ссылки в буфер обмена
+  const handleShare = async (lookId: string, lookTitle: string) => {
+    try {
+      // Генерируем ссылку на образ
+      // TODO: заменить на реальный домен приложения из env
+      const shareUrl = `https://looking-app.vercel.app/look/${lookId}`;
+      
+      // Копируем в буфер обмена
+      await Clipboard.setStringAsync(shareUrl);
+      
+      // Показываем уведомление об успешном копировании
+      Alert.alert(
+        'Ссылка скопирована',
+        `Ссылка на образ "${lookTitle}" скопирована в буфер обмена`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Ошибка при копировании ссылки:', error);
+      Alert.alert(
+        'Ошибка',
+        'Не удалось скопировать ссылку. Попробуйте снова.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   // Отображение пустого состояния
   const renderEmpty = () => {
     if (loading) return null;
@@ -125,6 +153,7 @@ export default function FeedScreen() {
             onToggleFavorite={() => handleToggleFavorite(item.id)}
             onBookLook={() => item.stylist && handleBookLook(item.stylist.id, item.id)}
             onStylistPress={() => item.stylist && handleStylistPress(item.stylist.id)}
+            onShare={() => handleShare(item.id, item.title)}
           />
         )}
         contentContainerStyle={styles.listContent}

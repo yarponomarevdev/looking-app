@@ -371,6 +371,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <TextInput
           style={styles.textArea}
           placeholder="Расскажите о себе и своем опыте работы стилистом..."
+          placeholderTextColor="#999"
           value={bio}
           onChangeText={setBio}
           multiline
@@ -385,6 +386,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <TextInput
           style={styles.input}
           placeholder="Instagram (без @)"
+          placeholderTextColor="#999"
           value={instagram}
           onChangeText={setInstagram}
           autoCapitalize="none"
@@ -392,6 +394,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <TextInput
           style={styles.input}
           placeholder="VK (ссылка или username)"
+          placeholderTextColor="#999"
           value={vk}
           onChangeText={setVk}
           autoCapitalize="none"
@@ -399,6 +402,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <TextInput
           style={styles.input}
           placeholder="Telegram (с @)"
+          placeholderTextColor="#999"
           value={telegram}
           onChangeText={setTelegram}
           autoCapitalize="none"
@@ -406,6 +410,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <TextInput
           style={styles.input}
           placeholder="WhatsApp (номер телефона)"
+          placeholderTextColor="#999"
           value={whatsapp}
           onChangeText={setWhatsapp}
           keyboardType="phone-pad"
@@ -479,6 +484,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
           <TextInput
             style={styles.customBrandInput}
             placeholder="Добавить свой бренд"
+            placeholderTextColor="#999"
             value={customBrand}
             onChangeText={setCustomBrand}
           />
@@ -507,6 +513,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
                 <TextInput
                   style={styles.timeInput}
                   placeholder="10:00"
+                  placeholderTextColor="#999"
                   value={workSchedule[key].start}
                   onChangeText={(value) => updateDaySchedule(key, 'start', value)}
                 />
@@ -514,6 +521,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
                 <TextInput
                   style={styles.timeInput}
                   placeholder="20:00"
+                  placeholderTextColor="#999"
                   value={workSchedule[key].end}
                   onChangeText={(value) => updateDaySchedule(key, 'end', value)}
                 />

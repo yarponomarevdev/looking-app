@@ -9,6 +9,10 @@
 - ✅ Детальные профили стилистов с портфолио
 - ✅ Авторизация через email/password (Supabase Auth)
 - ✅ Личный кабинет пользователя
+- ✅ Система бронирования встреч
+- ✅ Лента образов (Looks) от стилистов
+- ✅ Push-уведомления (PWA)
+- ✅ Прогрессивное веб-приложение (PWA) с офлайн-режимом
 
 ## 🛠 Технологический стек
 
@@ -206,14 +210,58 @@ APK будет в `android/app/build/outputs/apk/release/app-release.apk`
 - Клик на маркер → переход в профиль
 - Показ текущего местоположения
 
+## 🔔 Push-уведомления
+
+Приложение поддерживает Web Push уведомления для PWA (Progressive Web App):
+
+### Клиентская часть (✅ Готово)
+- Автоматическая подписка пользователей
+- UI для управления уведомлениями
+- Service Worker для показа уведомлений
+- Поддержка Android (Chrome, Edge) и Desktop браузеров
+
+### Серверная часть (требует настройки)
+Для полной работы необходимо выполнить деплой:
+
+1. **Настроить VAPID ключи** (уже сгенерированы)
+2. **Выполнить SQL миграции** в Supabase
+3. **Задеплоить Edge Function** `send-push-notification`
+4. **Настроить триггер БД** для автоматической отправки
+
+📚 **Инструкции:**
+- 🖱️ **Без CLI (рекомендую)**: [docs/PUSH_MANUAL_SETUP.md](./docs/PUSH_MANUAL_SETUP.md)
+- ⚡ **Быстрая настройка**: [docs/PUSH_QUICK_SETUP.md](./docs/PUSH_QUICK_SETUP.md)
+- 📖 **Подробное руководство**: [docs/PUSH_DEPLOYMENT_GUIDE.md](./docs/PUSH_DEPLOYMENT_GUIDE.md)
+
+### Быстрый старт
+
+```bash
+# 1. Установите Supabase CLI
+npm install -g supabase
+
+# 2. Войдите и свяжите проект
+supabase login
+supabase link --project-ref your-project-ref
+
+# 3. Установите секреты (VAPID ключи уже сгенерированы)
+supabase secrets set VAPID_PUBLIC_KEY=BPczBqcwpi3u7Wfpn7dYiHkfOXHaI6uletj_N7HwCJ0hy0OFYl4_MuU48NuKNboJHN3f1o98X88bUOz-V3LCWqg
+supabase secrets set VAPID_PRIVATE_KEY=wcjHrruKLGIDv7fgyvPwDgEW-P1UxTPBv238sNaikCk
+
+# 4. Деплой Edge Function
+supabase functions deploy send-push-notification
+
+# 5. Выполните SQL миграции в Supabase Dashboard
+# - docs/PUSH_SUBSCRIPTIONS_MIGRATION.sql
+# - docs/PUSH_TRIGGER_MIGRATION.sql
+```
+
 ## 📝 TODO (будущие функции)
 
-- [ ] Система бронирования встреч
-- [ ] Email уведомления через Resend
 - [ ] Гардероб для сохранения образов
 - [ ] Чат клиент-стилист
 - [ ] Рейтинги и отзывы
-- [ ] Push уведомления
+- [ ] Нативные push для iOS/Android (Expo Notifications)
+- [ ] Email уведомления через Resend
 
 ## 🐛 Известные проблемы
 

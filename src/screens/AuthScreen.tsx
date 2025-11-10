@@ -77,6 +77,7 @@ export default function AuthScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Ваше имя"
+                placeholderTextColor="#999"
                 value={fullName}
                 onChangeText={setFullName}
                 autoCapitalize="words"
@@ -109,6 +110,7 @@ export default function AuthScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email"
+            placeholderTextColor="#999"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -117,6 +119,7 @@ export default function AuthScreen() {
           <TextInput
             style={styles.input}
             placeholder="Пароль"
+            placeholderTextColor="#999"
             value={password}
             onChangeText={setPassword}
             secureTextEntry

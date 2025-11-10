@@ -45,7 +45,6 @@ export function NotificationSettings() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.icon}>🔔</Text>
           <View style={styles.headerText}>
             <Text style={styles.title}>Push-уведомления</Text>
             <Text style={[styles.status, { color: '#ff9800' }]}>
@@ -94,7 +93,6 @@ export function NotificationSettings() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.icon}>🔔</Text>
         <View style={styles.headerText}>
           <Text style={styles.title}>Push-уведомления</Text>
           <Text style={[styles.status, { color: getStatusColor() }]}>
@@ -157,10 +155,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  icon: {
-    fontSize: 32,
-    marginRight: 12,
   },
   headerText: {
     flex: 1,

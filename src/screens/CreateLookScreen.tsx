@@ -213,6 +213,7 @@ export default function CreateLookScreen({ navigation, route }: any) {
             <TextInput
               style={styles.input}
               placeholder="Например: Вечерний образ"
+              placeholderTextColor="#999"
               value={lookTitle}
               onChangeText={setLookTitle}
               maxLength={100}
@@ -225,6 +226,7 @@ export default function CreateLookScreen({ navigation, route }: any) {
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Расскажите об образе..."
+              placeholderTextColor="#999"
               value={lookDescription}
               onChangeText={setLookDescription}
               multiline
@@ -285,6 +287,7 @@ export default function CreateLookScreen({ navigation, route }: any) {
               <TextInput
                 style={styles.customBrandInput}
                 placeholder="Добавить свой бренд"
+                placeholderTextColor="#999"
                 value={customBrand}
                 onChangeText={setCustomBrand}
                 maxLength={30}
@@ -303,10 +306,11 @@ export default function CreateLookScreen({ navigation, route }: any) {
           
           {/* Цена */}
           <View style={styles.section}>
-            <Text style={styles.label}>Примерная стоимость (₽)</Text>
+            <Text style={styles.label}>Стоимость (₽)</Text>
             <TextInput
               style={styles.input}
               placeholder="Например: 15000"
+              placeholderTextColor="#999"
               value={lookPrice}
               onChangeText={setLookPrice}
               keyboardType="numeric"

@@ -25,6 +25,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useStylistStore } from '../../store/stylistStore';
 import { WorkSchedule } from '../../types';
 import { useAlert } from '../alert/AlertProvider';
+import CustomCalendar from './CustomCalendar';
 
 interface BookingModalProps {
   visible: boolean;
@@ -241,27 +242,14 @@ export default function BookingModal({
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Дата встречи</Text>
               {Platform.OS === 'web' ? (
-                // Нативный HTML5 date picker для веб
-                <input
-                  type="date"
-                  value={date.toISOString().split('T')[0]}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => {
-                    const selectedDate = new Date(e.target.value + 'T00:00:00');
+                // Кастомный календарь для веб
+                <CustomCalendar
+                  selectedDate={date}
+                  onDateChange={(selectedDate) => {
                     setDate(selectedDate);
                     setSelectedTime(null);
                   }}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: '#ddd',
-                    borderRadius: 8,
-                    padding: 14,
-                    backgroundColor: '#f9f9f9',
-                    fontSize: 16,
-                    color: '#333',
-                    width: '100%',
-                    fontFamily: 'inherit',
-                  }}
+                  minDate={new Date()}
                 />
               ) : (
                 <>
@@ -356,6 +344,7 @@ export default function BookingModal({
                 multiline
                 numberOfLines={4}
                 placeholder="Например: Хочу подобрать вечерний образ"
+                placeholderTextColor="#999"
                 value={comment}
                 onChangeText={setComment}
                 maxLength={500}

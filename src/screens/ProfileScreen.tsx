@@ -6,13 +6,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useStylistStore } from '../store/stylistStore';
 import { useLookStore } from '../store/lookStore';
 import NotificationBadge from '../components/notifications/NotificationBadge';
-import { NotificationSettings } from '../components/notifications/NotificationSettings';
 import { supabase } from '../lib/supabase';
 import { StylistLook } from '../types';
 import { useAlert } from '../components/alert/AlertProvider';
@@ -30,7 +28,6 @@ export default function ProfileScreen({ navigation }: any) {
   } = useLookStore();
   const { showAlert } = useAlert();
   
-  const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
   
   // Образы стилиста
@@ -167,106 +164,6 @@ export default function ProfileScreen({ navigation }: any) {
   );
 
   /**
-   * Выбор изображения из галереи
-   */
-  const pickImage = async () => {
-    // Запрашиваем разрешение на доступ к галерее
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      showAlert('Ошибка', 'Необходимо разрешение на доступ к галерее');
-      return;
-    }
-
-    // Открываем выбор изображения
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      await uploadAvatar(result.assets[0].uri);
-    }
-  };
-
-  /**
-   * Загрузка аватара в Supabase Storage
-   */
-  const uploadAvatar = async (uri: string) => {
-    if (!user) return;
-
-    try {
-      setUploading(true);
-
-      // Создаем FormData для загрузки файла
-      const formData = new FormData();
-      
-      // Получаем расширение файла
-      const fileExt = uri.split('.').pop() || 'jpg';
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      // Создаем объект файла для FormData
-      const file: any = {
-        uri: uri,
-        type: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
-        name: fileName,
-      };
-
-      // Читаем файл как ArrayBuffer для Supabase
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
-
-      // Загружаем в Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, arrayBuffer, {
-          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Получаем публичный URL
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const publicUrl = urlData.publicUrl;
-
-      // Обновляем метаданные пользователя
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url: publicUrl },
-      });
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Обновляем таблицу profiles
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-
-      if (profileError) {
-        console.error('Ошибка обновления profiles:', profileError);
-      }
-
-      setAvatarUrl(publicUrl);
-      showAlert('Успешно', 'Аватар обновлен');
-    } catch (error: any) {
-      showAlert('Ошибка', error.message);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  /**
    * Переход к экрану создания образа
    */
   const navigateToCreateLook = () => {
@@ -371,11 +268,7 @@ export default function ProfileScreen({ navigation }: any) {
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         {/* Аватар и информация */}
-        <TouchableOpacity 
-          style={styles.avatarContainer}
-          onPress={pickImage}
-          disabled={uploading}
-        >
+        <View style={styles.avatarContainer}>
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatar} />
           ) : (
@@ -385,17 +278,7 @@ export default function ProfileScreen({ navigation }: any) {
               </Text>
             </View>
           )}
-          
-          {uploading ? (
-            <View style={styles.uploadingOverlay}>
-              <ActivityIndicator color="white" size="large" />
-            </View>
-          ) : (
-            <View style={styles.editBadge}>
-              <Text style={styles.editBadgeText}>✏️</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        </View>
 
         <Text style={styles.name}>
           {user?.user_metadata?.full_name || 'Пользователь'}
@@ -538,9 +421,6 @@ export default function ProfileScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* Настройки уведомлений (только для веб) */}
-        {Platform.OS === 'web' && <NotificationSettings />}
-
         {/* Меню действий */}
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle}>Меню</Text>
@@ -625,33 +505,6 @@ const styles = StyleSheet.create({
     fontSize: 48,
     color: 'white',
     fontWeight: 'bold',
-  },
-  editBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#6200ee',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'white',
-  },
-  editBadgeText: {
-    fontSize: 14,
-  },
-  uploadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   name: {
     fontSize: 24,
