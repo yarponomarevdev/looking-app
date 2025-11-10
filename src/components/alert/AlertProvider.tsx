@@ -84,6 +84,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         transparent={true}
         animationType="fade"
         onRequestClose={hideAlert}
+        statusBarTranslucent={true}
       >
         <View style={styles.alertOverlay}>
           <View style={styles.alertBox}>
@@ -195,6 +196,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    zIndex: 10000, // Показываем Alert поверх всех модальных окон
+    ...(Platform.OS === 'web' && {
+      position: 'fixed' as any,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    }),
   },
   alertBox: {
     backgroundColor: 'white',
@@ -206,7 +215,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 10, // Увеличиваем elevation для Android
+    zIndex: 10001, // Добавляем zIndex для веб
   },
   alertTitle: {
     fontSize: 18,

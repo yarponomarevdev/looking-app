@@ -230,7 +230,8 @@ export function usePushNotifications(userId?: string) {
       registerServiceWorker();
       loadSubscription();
     }
-  }, [isSupported, userId, registerServiceWorker, loadSubscription]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSupported, userId]);
 
   return {
     isSupported,
