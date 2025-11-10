@@ -24,7 +24,6 @@ import { useBookingStore, TimeSlot } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { useStylistStore } from '../../store/stylistStore';
 import { WorkSchedule } from '../../types';
-import { useAlert } from '../alert/AlertProvider';
 import CustomCalendar from './CustomCalendar';
 
 interface BookingModalProps {
@@ -49,7 +48,6 @@ export default function BookingModal({
   const { user } = useAuthStore();
   const { createBooking, loading, getAvailableSlots, error: bookingError } = useBookingStore();
   const { fetchStylistById } = useStylistStore();
-  const { showAlert } = useAlert();
 
   const [date, setDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -60,11 +58,17 @@ export default function BookingModal({
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [workSchedule, setWorkSchedule] = useState<WorkSchedule | null>(null);
   const [stylistMalls, setStylistMalls] = useState<string[]>(MOSCOW_MALLS);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Загружаем график работы стилиста при открытии модального окна
   useEffect(() => {
     if (visible && stylistId) {
       loadStylistSchedule();
+      // Сбрасываем состояния уведомлений при открытии
+      setShowSuccess(false);
+      setShowError(false);
     }
   }, [visible, stylistId]);
 
@@ -145,12 +149,16 @@ export default function BookingModal({
 
   const handleSubmit = async () => {
     if (!user) {
-      showAlert('Ошибка', 'Необходимо войти в систему');
+      setErrorMessage('Необходимо войти в систему');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 5000);
       return;
     }
 
     if (!selectedTime) {
-      showAlert('Ошибка', 'Выберите время встречи');
+      setErrorMessage('Выберите время встречи');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 5000);
       return;
     }
 
@@ -169,29 +177,33 @@ export default function BookingModal({
     });
 
     if (result) {
-      showAlert(
-        'Успешно!', 
-        `Запрос на встречу с ${stylistName} отправлен. Ожидайте подтверждения.`,
-        [{ text: 'OK', onPress: () => {
-          onSuccess?.();
-          onClose();
-        }}]
-      );
+      // Показываем сообщение об успехе внутри модального окна
+      setShowSuccess(true);
       
       // Сброс формы
       setDate(new Date());
       setSelectedTime(null);
       setComment('');
       setSelectedMall(stylistMalls[0] || '');
+      
+      // Автоматически закрываем модальное окно через 2 секунды
+      setTimeout(() => {
+        setShowSuccess(false);
+        onSuccess?.();
+        onClose();
+      }, 2000);
     } else {
-      // Показываем конкретную ошибку из store или общее сообщение
-      showAlert(
-        'Ошибка', 
-        bookingError || 'Не удалось создать бронирование. Попробуйте снова.'
-      );
+      // Показываем ошибку внутри модального окна
+      setErrorMessage(bookingError || 'Не удалось создать бронирование. Попробуйте снова.');
+      setShowError(true);
       
       // Обновляем слоты, чтобы показать актуальное состояние
       loadAvailableSlots();
+      
+      // Автоматически скрываем ошибку через 5 секунд
+      setTimeout(() => {
+        setShowError(false);
+      }, 5000);
     }
   };
 
@@ -220,6 +232,29 @@ export default function BookingModal({
     >
       <View style={styles.overlay}>
         <View style={styles.modal}>
+          {/* Уведомление об успехе */}
+          {showSuccess && (
+            <View style={styles.successBanner}>
+              <Text style={styles.successIcon}>✓</Text>
+              <Text style={styles.successText}>
+                Запрос на встречу с {stylistName} отправлен. Ожидайте подтверждения.
+              </Text>
+            </View>
+          )}
+          
+          {/* Уведомление об ошибке */}
+          {showError && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorIcon}>✕</Text>
+              <View style={styles.errorTextContainer}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowError(false)} style={styles.errorCloseButton}>
+                <Text style={styles.errorCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
           {/* Заголовок */}
           <View style={styles.header}>
             <Text style={styles.title}>Записаться к стилисту</Text>
@@ -583,6 +618,58 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 6,
     fontStyle: 'italic',
+  },
+  
+  // Стили для баннеров уведомлений
+  successBanner: {
+    backgroundColor: '#4caf50',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    gap: 12,
+  },
+  successIcon: {
+    fontSize: 24,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  successText: {
+    flex: 1,
+    fontSize: 15,
+    color: 'white',
+    fontWeight: '600',
+  },
+  errorBanner: {
+    backgroundColor: '#f44336',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    gap: 12,
+  },
+  errorIcon: {
+    fontSize: 24,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  errorTextContainer: {
+    flex: 1,
+  },
+  errorText: {
+    fontSize: 15,
+    color: 'white',
+    fontWeight: '600',
+  },
+  errorCloseButton: {
+    padding: 4,
+  },
+  errorCloseText: {
+    fontSize: 20,
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 
