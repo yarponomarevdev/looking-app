@@ -22,12 +22,14 @@ https://looking-web.vercel.app
 
 ### Ссылка на образ
 ```
-https://looking-web.vercel.app?stylist={STYLIST_ID}&look={LOOK_ID}
+https://looking-web.vercel.app/feed?stylist={STYLIST_ID}&look={LOOK_ID}
 ```
+
+**Важно:** Ссылка должна содержать `/feed` для публичного доступа!
 
 ### Пример рабочей ссылки
 ```
-https://looking-web.vercel.app?stylist=1a89bf8c-bb99-4a9b-8c9d-0d7435a8c1e6&look=4ceec4e3-dfc2-49b9-a5bd-eac0beffd102
+https://looking-web.vercel.app/feed?stylist=1a89bf8c-bb99-4a9b-8c9d-0d7435a8c1e6&look=4ceec4e3-dfc2-49b9-a5bd-eac0beffd102
 ```
 
 ## 📋 Что было исправлено
@@ -51,9 +53,12 @@ https://looking-web.vercel.app?stylist=1a89bf8c-bb99-4a9b-8c9d-0d7435a8c1e6&look
    Должно открыться приложение Looking (лента образов)
 
 3. **Проверьте deep link:**
-   Откройте: https://looking-web.vercel.app?stylist=1a89bf8c-bb99-4a9b-8c9d-0d7435a8c1e6&look=4ceec4e3-dfc2-49b9-a5bd-eac0beffd102
+   Откройте: https://looking-web.vercel.app/feed?stylist=1a89bf8c-bb99-4a9b-8c9d-0d7435a8c1e6&look=4ceec4e3-dfc2-49b9-a5bd-eac0beffd102
    
-   Должно открыться приложение и перейти к профилю стилиста с выбранным образом
+   Должно:
+   - Открыться приложение на странице Feed
+   - Автоматически перейти к профилю стилиста с выбранным образом
+   - Работать для неавторизованных пользователей
 
 ## 🔧 Как найти URL своего проекта на Vercel
 

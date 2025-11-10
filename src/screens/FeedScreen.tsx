@@ -25,7 +25,7 @@ import LookCard from '../components/feed/LookCard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function FeedScreen() {
+export default function FeedScreen({ route }: any) {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuthStore();
   const { showToast } = useAlert();
@@ -39,6 +39,10 @@ export default function FeedScreen() {
     isFavorited,
   } = useLookStore();
 
+  // Параметры из deep link
+  const stylistId = route?.params?.stylist;
+  const lookId = route?.params?.look;
+
   // Загружаем образы и избранное при монтировании
   useEffect(() => {
     fetchLooks();
@@ -46,6 +50,22 @@ export default function FeedScreen() {
       fetchFavorites(user.id);
     }
   }, [user]);
+
+  // Обрабатываем deep link с параметрами стилиста и образа
+  useEffect(() => {
+    if (stylistId && lookId && !loading && looks.length > 0) {
+      // Небольшая задержка, чтобы экран успел отобразиться
+      const timer = setTimeout(() => {
+        console.log('Opening stylist from deep link:', { stylistId, lookId });
+        navigation.navigate('StylistDetail', {
+          id: stylistId,
+          selectedLookId: lookId,
+        });
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [stylistId, lookId, loading, looks, navigation]);
 
   // Обновляем избранное при возврате на экран
   useFocusEffect(
@@ -109,8 +129,8 @@ export default function FeedScreen() {
         return;
       }
 
-      // Генерируем ссылку на образ через профиль стилиста
-      const shareUrl = `https://looking-web.vercel.app?stylist=${look.stylist.id}&look=${look.id}`;
+      // Генерируем ссылку на образ через ленту (для публичного доступа)
+      const shareUrl = `https://looking-web.vercel.app/feed?stylist=${look.stylist.id}&look=${look.id}`;
       
       // Копируем в буфер обмена
       await Clipboard.setStringAsync(shareUrl);

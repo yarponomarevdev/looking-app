@@ -125,7 +125,13 @@ export default function AppNavigator() {
         Main: {
           path: '',
           screens: {
-            Feed: 'feed',
+            Feed: {
+              path: 'feed',
+              parse: {
+                stylist: (stylist: string) => stylist,
+                look: (look: string) => look,
+              },
+            },
             Map: 'map',
             List: 'list',
             Profile: 'profile',
@@ -159,23 +165,49 @@ export default function AppNavigator() {
         
         const stylistId = urlObj.searchParams.get('stylist');
         const lookId = urlObj.searchParams.get('look');
+        const pathname = urlObj.pathname;
         
-        console.log('Deep link parsed:', { path, stylistId, lookId });
+        console.log('Deep link parsed:', { path, pathname, stylistId, lookId });
         
         if (stylistId && lookId) {
-          // Возвращаем состояние навигации для перехода к профилю стилиста с образом
-          return {
-            routes: [
-              { name: 'Main' },
-              {
-                name: 'StylistDetail',
-                params: {
-                  id: stylistId,
-                  selectedLookId: lookId,
+          // Проверяем, идет ли запрос через /feed
+          if (pathname === '/feed' || pathname.startsWith('/feed')) {
+            // Для публичного доступа: открываем feed, затем переходим к стилисту
+            return {
+              routes: [
+                { 
+                  name: 'Main',
+                  state: {
+                    routes: [
+                      { name: 'Feed' }
+                    ],
+                    index: 0,
+                  }
                 },
-              },
-            ],
-          };
+                {
+                  name: 'StylistDetail',
+                  params: {
+                    id: stylistId,
+                    selectedLookId: lookId,
+                  },
+                },
+              ],
+            };
+          } else {
+            // Старый формат: прямой переход к стилисту
+            return {
+              routes: [
+                { name: 'Main' },
+                {
+                  name: 'StylistDetail',
+                  params: {
+                    id: stylistId,
+                    selectedLookId: lookId,
+                  },
+                },
+              ],
+            };
+          }
         }
       } catch (error) {
         console.error('Error parsing deep link:', error);
