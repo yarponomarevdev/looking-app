@@ -8,6 +8,13 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { useAlert } from '../components/alert/AlertProvider';
+import { z } from 'zod';
+
+// Схемы валидации
+const AuthSchema = z.object({
+  email: z.string().email('Неверный формат email'),
+  password: z.string().min(6, 'Пароль должен быть не менее 6 символов'),
+});
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -29,15 +36,18 @@ export default function AuthScreen() {
   }, [user, navigation]);
 
   const handleAuth = async () => {
-    console.log('handleAuth called', { email, password, isLogin });
-    
-    if (!email || !password) {
-      showAlert('Ошибка', 'Заполните все поля');
-      return;
-    }
+    try {
+      // Валидация
+      AuthSchema.parse({ email, password });
 
-    if (!isLogin && !fullName) {
-      showAlert('Ошибка', 'Введите ваше имя');
+      if (!isLogin && !fullName) {
+        showAlert('Ошибка', 'Введите ваше имя');
+        return;
+      }
+    } catch (e: any) {
+      if (e instanceof z.ZodError) {
+        showAlert('Ошибка', e.errors[0].message);
+      }
       return;
     }
 
@@ -55,7 +65,11 @@ export default function AuthScreen() {
       }
     } catch (error: any) {
       console.error('Auth error:', error);
-      showAlert('Ошибка', error.message || 'Что-то пошло не так');
+      // Улучшаем сообщение об ошибке
+      const errorMessage = error.message === 'Invalid login credentials' 
+        ? 'Неверный email или пароль' 
+        : error.message || 'Что-то пошло не так';
+      showAlert('Ошибка', errorMessage);
     } finally {
       setLoading(false);
     }

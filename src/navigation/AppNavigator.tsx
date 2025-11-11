@@ -52,13 +52,11 @@ function MainTabs() {
         options={{ 
           title: 'Лента',
           tabBarIcon: ({ color, size, focused }) => (
-            <Text>
-              <Ionicons 
-                name={focused ? 'images' : 'images-outline'} 
-                size={size} 
-                color={color} 
-              />
-            </Text>
+            <Ionicons 
+              name={focused ? 'images' : 'images-outline'} 
+              size={size} 
+              color={color} 
+            />
           ),
         }} 
       />
@@ -69,13 +67,11 @@ function MainTabs() {
           title: 'Карта',
           headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
-            <Text>
-              <Ionicons 
-                name={focused ? 'map' : 'map-outline'} 
-                size={size} 
-                color={color} 
-              />
-            </Text>
+            <Ionicons 
+              name={focused ? 'map' : 'map-outline'} 
+              size={size} 
+              color={color} 
+            />
           ),
         }} 
       />
@@ -85,13 +81,11 @@ function MainTabs() {
         options={{ 
           title: 'Список',
           tabBarIcon: ({ color, size, focused }) => (
-            <Text>
-              <Ionicons 
-                name={focused ? 'list' : 'list-outline'} 
-                size={size} 
-                color={color} 
-              />
-            </Text>
+            <Ionicons 
+              name={focused ? 'list' : 'list-outline'} 
+              size={size} 
+              color={color} 
+            />
           ),
         }} 
       />
@@ -101,14 +95,12 @@ function MainTabs() {
         options={{ 
           title: 'Профиль',
           tabBarIcon: ({ color, size, focused }) => (
-            <View style={{ position: 'relative' }}>
-              <Text>
-                <Ionicons 
-                  name={focused ? 'person' : 'person-outline'} 
-                  size={size} 
-                  color={color} 
-                />
-              </Text>
+            <View style={{ position: 'relative', pointerEvents: 'box-none' }}>
+              <Ionicons 
+                name={focused ? 'person' : 'person-outline'} 
+                size={size} 
+                color={color} 
+              />
               {unreadCount > 0 && (
                 <View style={{ position: 'absolute', top: -5, right: -10 }}>
                   <NotificationBadge count={unreadCount} />

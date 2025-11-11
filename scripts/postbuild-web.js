@@ -33,7 +33,7 @@ function processServiceWorker(sourcePath, destPath) {
     // Заменяем BUILD_DATE на текущую дату
     const buildDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
     content = content.replace(
-      new RegExp("const BUILD_DATE = new Date\\(\\)\\.toISOString\\(\\)\\.split\\('T'\\)\\[0\\]\\.replace\\(\\/-/g, ''\\);"),
+      /const BUILD_DATE = .*;/,
       `const BUILD_DATE = '${buildDate}';`
     );
     

@@ -1,6 +1,6 @@
 /**
  * Store для управления бронированиями
- * Включает создание, получение, обновление бронирований и real-time подписки
+ * Включает создание, получение, обновление бронирований и real-time подписку
  */
 
 import { create } from 'zustand';
@@ -213,7 +213,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   cancelBooking: async (bookingId: string) => {
     const { error } = await supabase
       .from('bookings')
-      .update({ status: 'rejected' })
+      .update({ status: 'cancelled' })
       .eq('id', bookingId);
     
     if (error) {
@@ -223,7 +223,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     
     // Обновляем локальное состояние
     const bookings = get().bookings.map(b => 
-      b.id === bookingId ? { ...b, status: 'rejected' as const } : b
+      b.id === bookingId ? { ...b, status: 'cancelled' as const } : b
     );
     set({ bookings });
     

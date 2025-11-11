@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 import { useNotificationStore } from './notificationStore';
+import { useStylistStore } from './stylistStore';
 
 interface AuthState {
   session: Session | null;
@@ -50,7 +51,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   signUp: async (email, password, fullName, role) => {
     // Определяем redirect URL в зависимости от платформы
     const redirectTo = Platform.OS === 'web' 
-      ? 'https://looking-web.vercel.app'
+      ? 'https://looking-web.vercel.app' // TODO: Вынести в переменные окружения
       : 'lookingapp://auth/callback';
     
     const { error } = await supabase.auth.signUp({
@@ -67,7 +68,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     try {
       // Получаем текущего пользователя перед выходом
-      const { data: { user } } = await supabase.auth.getUser();
+      // Убираем лишний запрос, берем пользователя из стора
+      const user = useAuthStore.getState().user;
       
       // Удаляем все push-подписки пользователя из БД
       if (user?.id) {
@@ -96,14 +98,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Очищаем локальное состояние
       set({ session: null, user: null });
       
-      // Очищаем состояние уведомлений
+      // Очищаем состояние уведомлений и стилистов
       useNotificationStore.getState().reset();
+      useStylistStore.getState().reset();
     } catch (error) {
       console.error('Error during sign out:', error);
       // Всё равно пытаемся выйти даже при ошибках
       await supabase.auth.signOut();
       set({ session: null, user: null });
       useNotificationStore.getState().reset();
+      useStylistStore.getState().reset();
     }
   },
 }));

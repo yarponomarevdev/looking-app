@@ -104,11 +104,18 @@ export default function FeedScreen({ route }: any) {
       return;
     }
 
-    const favorited = isFavorited(lookId);
-    if (favorited) {
-      await removeFromFavorites(user.id, lookId);
-    } else {
-      await addToFavorites(user.id, lookId);
+    // В isFavorited теперь нет смысла, т.к. UI обновляется мгновенно.
+    // Просто вызываем метод и обрабатываем возможную ошибку отката.
+    const success = isFavorited(lookId)
+      ? await removeFromFavorites(user.id, lookId)
+      : await addToFavorites(user.id, lookId);
+
+    if (!success) {
+      // Если optimistic update не удался, показываем ошибку
+      showToast({
+        message: 'Не удалось обновить избранное. Попробуйте снова.',
+        type: 'error',
+      });
     }
   };
 

@@ -223,28 +223,38 @@ export const useLookStore = create<LookState>((set, get) => ({
   },
   
   addToFavorites: async (userId: string, lookId: string) => {
+    // Оптимистичное обновление
+    const originalFavorites = new Set(get().favoriteLookIds);
+    const newFavorites = new Set(originalFavorites);
+    newFavorites.add(lookId);
+    set({ favoriteLookIds: newFavorites });
+
     try {
       const { error } = await supabase
         .from('favorite_looks')
         .insert({ user_id: userId, look_id: lookId });
       
       if (error) {
-        set({ error: error.message });
+        // Откат в случае ошибки
+        set({ favoriteLookIds: originalFavorites, error: error.message });
         return false;
       }
       
-      // Добавляем в локальное состояние
-      const favoriteLookIds = new Set(get().favoriteLookIds);
-      favoriteLookIds.add(lookId);
-      set({ favoriteLookIds });
       return true;
     } catch (error: any) {
-      set({ error: error.message });
+      // Откат в случае ошибки
+      set({ favoriteLookIds: originalFavorites, error: error.message });
       return false;
     }
   },
   
   removeFromFavorites: async (userId: string, lookId: string) => {
+    // Оптимистичное обновление
+    const originalFavorites = new Set(get().favoriteLookIds);
+    const newFavorites = new Set(originalFavorites);
+    newFavorites.delete(lookId);
+    set({ favoriteLookIds: newFavorites });
+
     try {
       const { error } = await supabase
         .from('favorite_looks')
@@ -253,17 +263,15 @@ export const useLookStore = create<LookState>((set, get) => ({
         .eq('look_id', lookId);
       
       if (error) {
-        set({ error: error.message });
+        // Откат в случае ошибки
+        set({ favoriteLookIds: originalFavorites, error: error.message });
         return false;
       }
       
-      // Удаляем из локального состояния
-      const favoriteLookIds = new Set(get().favoriteLookIds);
-      favoriteLookIds.delete(lookId);
-      set({ favoriteLookIds });
       return true;
     } catch (error: any) {
-      set({ error: error.message });
+      // Откат в случае ошибки
+      set({ favoriteLookIds: originalFavorites, error: error.message });
       return false;
     }
   },

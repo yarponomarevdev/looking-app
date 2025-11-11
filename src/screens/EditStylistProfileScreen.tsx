@@ -79,7 +79,8 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     if (!user) return;
     
     setLoading(true);
-    const stylist = await fetchStylistByUserId(user.id);
+    // Принудительно загружаем свежие данные из БД, игнорируя кэш
+    const stylist = await fetchStylistByUserId(user.id, true);
     
     if (stylist) {
       setAvatarUrl(stylist.avatar_url || user.user_metadata?.avatar_url || null);
@@ -96,6 +97,11 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         setTelegram(stylist.social_links.telegram || '');
         setWhatsapp(stylist.social_links.whatsapp || '');
       }
+    } else {
+      // Если профиль создается впервые, явно ставим статус 'inactive'
+      setStatus('inactive');
+      // Также можно установить аватар по умолчанию из профиля auth
+      setAvatarUrl(user.user_metadata?.avatar_url || null);
     }
     
     setLoading(false);

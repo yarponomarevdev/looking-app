@@ -13,16 +13,21 @@ interface StylistState {
   error: string | null;
   fetchStylists: () => Promise<void>;
   fetchStylistById: (id: string) => Promise<Stylist | null>;
-  fetchStylistByUserId: (userId: string) => Promise<Stylist | null>;
+  fetchStylistByUserId: (userId: string, forceRefresh?: boolean) => Promise<Stylist | null>;
   updateStylist: (userId: string, updates: Partial<Stylist>) => Promise<boolean>;
   updateStatus: (userId: string, status: 'active' | 'inactive') => Promise<boolean>;
   subscribeToUpdates: () => () => void;
+  reset: () => void;
 }
 
-export const useStylistStore = create<StylistState>((set, get) => ({
+const initialState = {
   stylists: [],
   loading: false,
   error: null,
+};
+
+export const useStylistStore = create<StylistState>((set, get) => ({
+  ...initialState,
   
   fetchStylists: async () => {
     set({ loading: true, error: null });
@@ -89,10 +94,12 @@ export const useStylistStore = create<StylistState>((set, get) => ({
     return null;
   },
 
-  fetchStylistByUserId: async (userId: string) => {
-    // Сначала проверяем в кэше
-    const existing = get().stylists.find(s => s.user_id === userId);
-    if (existing) return existing;
+  fetchStylistByUserId: async (userId: string, forceRefresh: boolean = false) => {
+    // Если не требуется принудительное обновление, проверяем кэш
+    if (!forceRefresh) {
+      const existing = get().stylists.find(s => s.user_id === userId);
+      if (existing) return existing;
+    }
     
     // Загружаем из БД по user_id
     const { data, error } = await supabase
@@ -102,7 +109,7 @@ export const useStylistStore = create<StylistState>((set, get) => ({
       .single();
     
     if (!error && data) {
-      return {
+      const stylist = {
         id: data.id,
         user_id: data.user_id,
         full_name: data.profiles?.full_name || 'Без имени',
@@ -117,6 +124,20 @@ export const useStylistStore = create<StylistState>((set, get) => ({
         work_schedule: data.work_schedule || {},
         portfolio_images: data.portfolio_images || [],
       };
+      
+      // Обновляем кэш
+      if (forceRefresh) {
+        const stylists = get().stylists.map(s => 
+          s.user_id === userId ? stylist : s
+        );
+        // Если стилиста не было в кэше, добавляем
+        if (!stylists.find(s => s.user_id === userId)) {
+          stylists.push(stylist);
+        }
+        set({ stylists });
+      }
+      
+      return stylist;
     }
     return null;
   },
@@ -179,6 +200,10 @@ export const useStylistStore = create<StylistState>((set, get) => ({
       .subscribe();
     
     return () => { supabase.removeChannel(channel); };
+  },
+
+  reset: () => {
+    set(initialState);
   },
 }));
 

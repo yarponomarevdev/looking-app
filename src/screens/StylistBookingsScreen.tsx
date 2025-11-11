@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, SectionList, ActivityIndicator, Platform } from 'react-native';
 import { useBookingStore } from '../store/bookingStore';
 import { useAuthStore } from '../store/authStore';
 import { useStylistStore } from '../store/stylistStore';
@@ -159,6 +159,7 @@ export default function StylistBookingsScreen() {
       showActions={true}
       onConfirm={item.status === 'pending' ? () => handleConfirm(item.id) : undefined}
       onReject={item.status === 'pending' ? () => handleReject(item.id) : undefined}
+      onCancel={item.status === 'confirmed' ? () => handleComplete(item.id) : undefined}
     />
   );
 
@@ -180,33 +181,28 @@ export default function StylistBookingsScreen() {
     );
   }
 
-  if (bookings.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>У вас пока нет запросов на встречи</Text>
-      </View>
-    );
-  }
-
-  const allBookings = [...pendingBookings, ...confirmedBookings, ...pastBookings];
+  const sections = [
+    { title: `Новые запросы (${pendingBookings.length})`, data: pendingBookings },
+    { title: `Предстоящие (${confirmedBookings.length})`, data: confirmedBookings },
+    { title: 'История', data: pastBookings },
+  ].filter(section => section.data.length > 0);
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={allBookings}
+      <SectionList
+        sections={sections}
         renderItem={renderBooking}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <>
-            {pendingBookings.length > 0 && (
-              <View style={styles.header}>
-                <Text style={styles.sectionTitle}>
-                  Новые запросы ({pendingBookings.length})
-                </Text>
-              </View>
-            )}
-          </>
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={styles.header}>
+            <Text style={styles.sectionTitle}>{title}</Text>
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={styles.centerContainer}>
+            <Text style={styles.emptyText}>У вас пока нет запросов на встречи</Text>
+          </View>
         }
       />
     </View>
