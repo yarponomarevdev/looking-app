@@ -18,7 +18,19 @@ self.addEventListener('install', (event) => {
   console.log('[SW] Installing with cache:', CACHE_NAME);
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+      .then((cache) => {
+        // Загружаем ресурсы с флагом 'reload', чтобы обойти HTTP-кэш браузера
+        // и гарантированно получить свежие версии файлов с сервера
+        const requestPromises = urlsToCache.map(url => {
+          const request = new Request(url, { cache: 'reload' });
+          return fetch(request)
+            .then(response => {
+              if (!response.ok) throw Error(`[SW] Failed to fetch ${url}`);
+              return cache.put(request, response);
+            });
+        });
+        return Promise.all(requestPromises);
+      })
       .then(() => self.skipWaiting())
   );
 });
@@ -50,8 +62,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Не кэшируем запросы к API и chrome-extension
+  // Не кэшируем запросы к API, Supabase и chrome-extension
   if (url.pathname.startsWith('/api') || 
+      url.hostname.includes('supabase') ||
       url.pathname.includes('supabase') ||
       url.protocol === 'chrome-extension:') {
     return;
@@ -60,7 +73,7 @@ self.addEventListener('fetch', (event) => {
   // Для HTML всегда идем в сеть сначала, чтобы получить свежие данные
   if (request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'reload' }) // Игнорируем HTTP-кэш браузера
         .then((response) => {
           // Сохраняем в кэш только успешные ответы
           if (response && response.status === 200 && response.type === 'basic') {

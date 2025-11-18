@@ -115,14 +115,14 @@ export default function AuthScreen() {
               
               {/* Выбор роли */}
               <View style={styles.roleContainer}>
-                <Text style={styles.roleLabel}>Я хочу быть:</Text>
+                <Text style={styles.roleLabel}>Кто вы?</Text>
                 <View style={styles.roleButtons}>
                   <TouchableOpacity
                     style={[styles.roleButton, role === 'client' && styles.roleButtonActive]}
                     onPress={() => setRole('client')}
                   >
                     <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>
-                      Клиентом
+                      Пользователь
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -130,7 +130,7 @@ export default function AuthScreen() {
                     onPress={() => setRole('stylist')}
                   >
                     <Text style={[styles.roleButtonText, role === 'stylist' && styles.roleButtonTextActive]}>
-                      Стилистом
+                      Стилист
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -270,6 +270,7 @@ const styles = StyleSheet.create({
   },
   roleButtons: {
     flexDirection: 'row',
+    gap: 12,
   },
   roleButton: {
     flex: 1,
@@ -280,7 +281,6 @@ const styles = StyleSheet.create({
     borderColor: '#6200ee',
     backgroundColor: 'white',
     alignItems: 'center',
-    marginLeft: 12,
   },
   roleButtonActive: {
     backgroundColor: '#6200ee',

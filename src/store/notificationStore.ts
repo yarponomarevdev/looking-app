@@ -46,13 +46,21 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
   
   markAsRead: async (notificationId: string) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('id', notificationId);
+      .eq('id', notificationId)
+      .select();
     
     if (error) {
       set({ error: error.message });
+      return false;
+    }
+
+    // Если запись не обновилась (например, из-за RLS или неверного ID), возвращаем false
+    // и не обновляем локальное состояние, чтобы пользователь видел проблему
+    if (!data || data.length === 0) {
+      console.warn('Notification update failed: No rows affected. Check RLS policies.');
       return false;
     }
     
@@ -67,15 +75,22 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
   
   markAllAsRead: async (userId: string) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('user_id', userId)
-      .eq('is_read', false);
+      .eq('is_read', false)
+      .select();
     
     if (error) {
       set({ error: error.message });
       return false;
+    }
+
+    // Если ничего не обновилось, но ошибок нет - возможно все уже прочитано
+    // или RLS блокирует обновление
+    if ((!data || data.length === 0) && error) {
+        return false;
     }
     
     // Обновляем локальное состояние

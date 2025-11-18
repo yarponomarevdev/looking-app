@@ -82,10 +82,41 @@
           .register('/service-worker.js')
           .then((registration) => {
             console.log('Service Worker зарегистрирован:', registration.scope);
+            
+            // Принудительно проверяем обновления при каждой загрузке
+            registration.update();
+
+            // Если обнаружено обновление
+            registration.onupdatefound = () => {
+              const installingWorker = registration.installing;
+              if (installingWorker == null) {
+                return;
+              }
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed') {
+                  if (navigator.serviceWorker.controller) {
+                    // Новая версия доступна. 
+                    // Логика перезагрузки обрабатывается в событии controllerchange ниже.
+                    console.log('Доступна новая версия контента.');
+                  } else {
+                    console.log('Контент закэширован для офлайн-работы.');
+                  }
+                }
+              };
+            };
           })
           .catch((error) => {
             console.error('Ошибка регистрации Service Worker:', error);
           });
+
+        // Перезагружаем страницу, когда новый SW берет управление (после skipWaiting)
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            window.location.reload();
+            refreshing = true;
+          }
+        });
       });
     }
   </script>

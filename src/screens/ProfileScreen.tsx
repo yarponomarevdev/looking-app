@@ -334,7 +334,7 @@ export default function ProfileScreen({ navigation }: any) {
         <View style={styles.infoSection}>
           <Text style={styles.infoLabel}>Роль:</Text>
           <Text style={styles.infoValue}>
-            {isStylist ? 'Стилист' : 'Клиент'}
+            {isStylist ? 'Стилист' : 'Пользователь'}
           </Text>
         </View>
 
