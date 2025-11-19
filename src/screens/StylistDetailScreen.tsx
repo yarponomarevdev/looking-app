@@ -312,8 +312,8 @@ export default function StylistDetailScreen({ route, navigation }: any) {
                   <Text style={styles.lookTitle} numberOfLines={1}>
                     {look.title}
                   </Text>
-                  {look.price && (
-                    <Text style={styles.lookPrice}>{look.price.toLocaleString()} ₽</Text>
+                  {typeof look.price === 'string' && look.price.trim().length > 0 && (
+                    <Text style={styles.lookPrice}>{look.price.trim()}</Text>
                   )}
                   {look.brands && look.brands.length > 0 && (
                     <View style={styles.lookBrands}>

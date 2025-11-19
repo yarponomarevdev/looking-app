@@ -158,7 +158,7 @@ export default function CreateLookScreen({ navigation, route }: any) {
       return;
     }
 
-    const price = lookPrice.trim() ? parseFloat(lookPrice.trim()) : null;
+    const price = lookPrice.trim() ? lookPrice.trim() : null;
 
     const success = await createLook(
       stylistId,
@@ -309,12 +309,10 @@ export default function CreateLookScreen({ navigation, route }: any) {
             <Text style={styles.label}>Стоимость (₽)</Text>
             <TextInput
               style={styles.input}
-              placeholder="Например: 15000"
+              placeholder="Например: 15000 или По запросу"
               placeholderTextColor="#999"
               value={lookPrice}
               onChangeText={setLookPrice}
-              keyboardType="numeric"
-              maxLength={10}
             />
           </View>
           

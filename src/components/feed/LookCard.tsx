@@ -29,6 +29,8 @@ export default function LookCard({
   onShare,
   onViewLook,
 }: LookCardProps) {
+  const priceText = typeof look.price === 'string' ? look.price.trim() : '';
+
   return (
     <View style={styles.card}>
       {/* Изображение образа */}
@@ -95,17 +97,10 @@ export default function LookCard({
           </View>
         )}
         {/* Цена */}
-        {look.price !== null && look.price !== undefined && (
+        {priceText.length > 0 && (
           <View style={styles.priceContainer}>
             <Text style={styles.priceLabel}>Стоимость:</Text>
-            <Text style={styles.priceValue}>
-              {new Intl.NumberFormat('ru-RU', { 
-                style: 'currency', 
-                currency: 'RUB',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-              }).format(look.price)}
-            </Text>
+            <Text style={styles.priceValue}>{priceText}</Text>
           </View>
         )}
         {/* Информация о стилисте */}

@@ -20,7 +20,7 @@ interface LookState {
   fetchStylistLooks: (stylistId: string) => Promise<StylistLook[]>;
   
   // Создание нового образа
-  createLook: (stylistId: string, title: string, description: string, imageUrl: string, brands: string[], price: number | null) => Promise<boolean>;
+  createLook: (stylistId: string, title: string, description: string, imageUrl: string, brands: string[], price: string | null) => Promise<boolean>;
   
   // Обновление образа
   updateLook: (lookId: string, title: string, description: string) => Promise<boolean>;
@@ -80,7 +80,7 @@ export const useLookStore = create<LookState>((set, get) => ({
             description: item.description,
             image_url: item.image_url,
             brands: item.brands || [],
-            price: item.price,
+            price: item.price ?? null,
             created_at: item.created_at,
             updated_at: item.updated_at,
             stylist: stylistData ? {
@@ -129,8 +129,9 @@ export const useLookStore = create<LookState>((set, get) => ({
     }
   },
   
-  createLook: async (stylistId: string, title: string, description: string, imageUrl: string, brands: string[], price: number | null) => {
+  createLook: async (stylistId: string, title: string, description: string, imageUrl: string, brands: string[], price: string | null) => {
     try {
+      const preparedPrice = price?.trim() || null;
       const { error } = await supabase
         .from('stylist_looks')
         .insert({
@@ -139,7 +140,7 @@ export const useLookStore = create<LookState>((set, get) => ({
           description,
           image_url: imageUrl,
           brands: brands || [],
-          price: price,
+          price: preparedPrice,
         });
       
       if (error) {

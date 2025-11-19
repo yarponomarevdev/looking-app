@@ -13,6 +13,38 @@ const urlsToCache = [
   '/manifest.json',
 ];
 
+function cacheResponse(request, response) {
+  if (!response || response.status !== 200) {
+    return;
+  }
+  const responseClone = response.clone();
+  caches.open(CACHE_NAME)
+    .then((cache) => cache.put(request, responseClone))
+    .catch((err) => console.warn('[SW] Cache put failed:', err));
+}
+
+function networkFirst(request) {
+  return fetch(request, { cache: 'reload' })
+    .then((response) => {
+      cacheResponse(request, response);
+      return response;
+    })
+    .catch(() => caches.match(request));
+}
+
+function cacheFirst(request) {
+  return caches.match(request)
+    .then((response) => {
+      if (response) {
+        return response;
+      }
+      return fetch(request).then((networkResponse) => {
+        cacheResponse(request, networkResponse);
+        return networkResponse;
+      });
+    });
+}
+
 // Установка Service Worker
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing with cache:', CACHE_NAME);
@@ -70,47 +102,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Для HTML всегда идем в сеть сначала, чтобы получить свежие данные
-  if (request.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(
-      fetch(request, { cache: 'reload' }) // Игнорируем HTTP-кэш браузера
-        .then((response) => {
-          // Сохраняем в кэш только успешные ответы
-          if (response && response.status === 200 && response.type === 'basic') {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            }).catch(err => console.warn('[SW] Cache put failed:', err));
-          }
-          return response;
-        })
-        .catch(() => {
-          // Если нет сети, пробуем кэш
-          return caches.match(request);
-        })
-    );
+  const isHtmlRequest = request.headers.get('accept')?.includes('text/html');
+  const isCriticalAsset =
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    request.destination === 'worker' ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css');
+
+  // Для HTML и критичных ассетов (JS/CSS) используем стратегию Network First
+  if (isHtmlRequest || isCriticalAsset) {
+    event.respondWith(networkFirst(request));
     return;
   }
 
   // Для остальных ресурсов используем Cache First
-  event.respondWith(
-    caches.match(request)
-      .then((response) => {
-        if (response) {
-          return response;
-        }
-        return fetch(request).then((response) => {
-          // Кэшируем только успешные ответы для статических ресурсов
-          if (response && response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            }).catch(err => console.warn('[SW] Cache put failed:', err));
-          }
-          return response;
-        });
-      })
-  );
+  event.respondWith(cacheFirst(request));
 });
 
 // Обработка Push-уведомлений

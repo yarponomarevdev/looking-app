@@ -42,6 +42,7 @@ export default function LookDetailModal({
   onShare,
 }: LookDetailModalProps) {
   if (!look) return null;
+  const priceText = typeof look.price === 'string' ? look.price.trim() : '';
 
   return (
     <Modal
@@ -125,17 +126,10 @@ export default function LookDetailModal({
             )}
 
             {/* Цена */}
-            {look.price !== null && look.price !== undefined && (
+            {priceText.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Стоимость</Text>
-                <Text style={styles.price}>
-                  {new Intl.NumberFormat('ru-RU', {
-                    style: 'currency',
-                    currency: 'RUB',
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                  }).format(look.price)}
-                </Text>
+                <Text style={styles.price}>{priceText}</Text>
               </View>
             )}
 

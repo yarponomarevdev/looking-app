@@ -115,7 +115,7 @@ export interface StylistLook {
   description: string | null;
   image_url: string;
   brands: string[]; // Массив брендов одежды
-  price: number | null; // Стоимость образа в рублях
+  price: string | null; // Стоимость образа в свободном формате
   created_at: string;
   updated_at: string;
   stylist?: Stylist; // Информация о стилисте (для ленты)

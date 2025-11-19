@@ -767,12 +767,15 @@ const styles = StyleSheet.create({
   },
   scheduleRow: {
     marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: 16,
   },
   scheduleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   dayLabel: {
     fontSize: 16,
@@ -782,6 +785,7 @@ const styles = StyleSheet.create({
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   timeInput: {
     flex: 1,
@@ -790,12 +794,13 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     textAlign: 'center',
+    maxWidth: '45%',
   },
   timeSeparator: {
     fontSize: 18,
     color: '#666',
     fontWeight: 'bold',
-    marginHorizontal: 12,
+    marginHorizontal: 8,
   },
   saveButton: {
     backgroundColor: '#6200ee',
