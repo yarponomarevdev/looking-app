@@ -88,7 +88,7 @@ export interface Booking {
   mall: string;
   comment?: string;
   look_id?: string; // ID образа, на который записался клиент (опционально)
-  status: 'pending' | 'confirmed' | 'rejected' | 'completed';
+  status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled';
   created_at: string;
   updated_at: string;
   stylist?: Stylist;
@@ -101,7 +101,7 @@ export interface Notification {
   user_id: string;
   title: string;
   message: string;
-  type: 'booking_created' | 'booking_confirmed' | 'booking_rejected';
+  type: 'booking_created' | 'booking_confirmed' | 'booking_rejected' | 'booking_cancelled';
   related_booking_id?: string;
   is_read: boolean;
   created_at: string;

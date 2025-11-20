@@ -17,3 +17,4 @@ COMMENT ON COLUMN stylist_looks.price IS 'Примерная стоимость 
 
 
 
+

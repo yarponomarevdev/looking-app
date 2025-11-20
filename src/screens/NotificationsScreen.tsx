@@ -55,6 +55,8 @@ export default function NotificationsScreen({ navigation }: any) {
         return '✅';
       case 'booking_rejected':
         return '❌';
+      case 'booking_cancelled':
+        return '🚫';
       default:
         return '📢';
     }
