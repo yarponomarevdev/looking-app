@@ -3,6 +3,13 @@
   "outputDirectory": "dist",
   "framework": null,
   "devCommand": "npm run web",
+  "build": {
+    "env": {
+      "EXPO_PUBLIC_SUPABASE_URL": "https://bblovvqoltasbbwzrjlb.supabase.co",
+      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJibG92dnFvbHRhc2Jid3pyamxiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0MjI4NzIsImV4cCI6MjA3Nzk5ODg3Mn0.6_Qwqjes6S9px9Uf_8ZHVPQLV7IWtFNJCmeX2nJaWeA",
+      "EXPO_PUBLIC_VAPID_PUBLIC_KEY": "BPczBqcwpi3u7Wfpn7dYiHkfOXHaI6uletj_N7HwCJ0hy0OFYl4_MuU48NuKNboJHN3f1o98X88bUOz-V3LCWqg"
+    }
+  },
   "headers": [
     {
       "source": "/service-worker.js",
