@@ -475,19 +475,21 @@ const styles = StyleSheet.create({
   },
   customBrandRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'center',
   },
   customBrandInput: {
     flex: 1,
     backgroundColor: '#fff',
     borderRadius: 8,
-    padding: 14,
+    paddingHorizontal: 12,
+    height: 48,
     fontSize: 14,
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
   addBrandButton: {
     paddingHorizontal: 20,
+    height: 48,
     borderRadius: 8,
     backgroundColor: '#6200ee',
     justifyContent: 'center',
@@ -509,7 +511,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginLeft: 12,
   },
   cancelButton: {
     backgroundColor: '#fff',
@@ -518,6 +519,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: '#6200ee',
+    marginLeft: 12,
   },
   cancelButtonText: {
     color: '#666',
