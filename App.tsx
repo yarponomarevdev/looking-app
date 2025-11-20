@@ -13,9 +13,10 @@ import { supabase } from './src/lib/supabase';
 import { AlertProvider } from './src/components/alert/AlertProvider';
 import { UniversalInstallButton } from './src/components/pwa/UniversalInstallButton';
 import { PushNotificationPrompt } from './src/components/notifications/PushNotificationPrompt';
+import { ensureInitialPushRegistration } from './src/hooks/usePushNotifications';
 
 export default function App() {
-  const { loading, initialize } = useAuthStore();
+  const { loading, initialize, user } = useAuthStore();
 
   useEffect(() => {
     initialize();
@@ -106,6 +107,12 @@ export default function App() {
       };
     }
   }, []);
+
+  useEffect(() => {
+    if (user?.id) {
+      ensureInitialPushRegistration(user.id);
+    }
+  }, [user?.id]);
 
   if (loading) {
     return (

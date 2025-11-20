@@ -6,13 +6,144 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { StoredPushSubscription } from '../types/push-subscription';
+import { usePushSubscriptionStore } from '../store/pushSubscriptionStore';
 
-interface PushSubscription {
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
+async function registerServiceWorkerInstance(): Promise<ServiceWorkerRegistration | null> {
+  if (Platform.OS !== 'web' || !('serviceWorker' in navigator)) {
+    return null;
+  }
+
+  try {
+    const existingRegistration = await navigator.serviceWorker.getRegistration('/service-worker.js');
+    if (existingRegistration) {
+      return existingRegistration;
+    }
+
+    const registration = await navigator.serviceWorker.register('/service-worker.js');
+    console.log('Service Worker registered:', registration);
+    return registration;
+  } catch (error) {
+    console.error('Service Worker registration failed:', error);
+    return null;
+  }
+}
+
+async function upsertSubscriptionRecord(userId: string, sub: StoredPushSubscription) {
+  return supabase
+    .from('push_subscriptions')
+    .upsert({
+      user_id: userId,
+      endpoint: sub.endpoint,
+      p256dh: sub.keys.p256dh,
+      auth: sub.keys.auth,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'user_id,endpoint',
+    })
+    .select();
+}
+
+async function syncPushSubscription(
+  userId: string,
+  setSubscriptionCallback?: (sub: StoredPushSubscription | null) => void
+): Promise<void> {
+  if (Platform.OS !== 'web' || !('serviceWorker' in navigator)) {
+    return;
+  }
+
+  const setSubscription =
+    setSubscriptionCallback ?? usePushSubscriptionStore.getState().setSubscription;
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const browserSubscription = await registration.pushManager.getSubscription();
+
+    const { data: dbSubscriptions, error: dbError } = await supabase
+      .from('push_subscriptions')
+      .select('endpoint, p256dh, auth')
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (dbError) {
+      console.error('Error loading subscription from DB:', dbError);
+    }
+
+    const dbSubscription = dbSubscriptions && dbSubscriptions.length > 0 ? dbSubscriptions[0] : null;
+
+    if (dbSubscription && !browserSubscription) {
+      const applicationServerKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY;
+      if (applicationServerKey) {
+        try {
+          const restoredSubscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(applicationServerKey) as any,
+          });
+
+          const restoredJSON = restoredSubscription.toJSON();
+          await supabase
+            .from('push_subscriptions')
+            .update({
+              endpoint: restoredJSON.endpoint!,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', userId)
+            .eq('endpoint', dbSubscription.endpoint);
+
+          setSubscription({
+            endpoint: restoredJSON.endpoint!,
+            keys: {
+              p256dh: restoredJSON.keys!.p256dh!,
+              auth: restoredJSON.keys!.auth!,
+            },
+          });
+          console.log('✅ Push subscription restored from DB');
+          return;
+        } catch (error) {
+          console.error('Error restoring subscription:', error);
+        }
+      }
+    }
+
+    if (browserSubscription && !dbSubscription) {
+      const subscriptionJSON = browserSubscription.toJSON();
+      const sub: StoredPushSubscription = {
+        endpoint: subscriptionJSON.endpoint!,
+        keys: {
+          p256dh: subscriptionJSON.keys!.p256dh!,
+          auth: subscriptionJSON.keys!.auth!,
+        },
+      };
+
+      try {
+        const { error: saveError } = await upsertSubscriptionRecord(userId, sub);
+        if (saveError) {
+          console.error('Error syncing subscription to DB:', saveError);
+        } else {
+          console.log('✅ Push subscription synced to DB');
+        }
+      } catch (error) {
+        console.error('Error syncing subscription:', error);
+      }
+      setSubscription(sub);
+      return;
+    }
+
+    if (browserSubscription) {
+      const subscriptionJSON = browserSubscription.toJSON();
+      setSubscription({
+        endpoint: subscriptionJSON.endpoint!,
+        keys: {
+          p256dh: subscriptionJSON.keys!.p256dh!,
+          auth: subscriptionJSON.keys!.auth!,
+        },
+      });
+    } else {
+      setSubscription(null);
+    }
+  } catch (error) {
+    console.error('Error syncing subscription:', error);
+  }
 }
 
 // Утилита для конвертации VAPID ключа (должна быть объявлена до использования)
@@ -53,8 +184,10 @@ function isStandalone(): boolean {
 export function usePushNotifications(userId?: string) {
   const [isSupported, setIsSupported] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
-  const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [loading, setLoading] = useState(false);
+  const subscription = usePushSubscriptionStore((state) => state.subscription);
+  const setStoredSubscription = usePushSubscriptionStore((state) => state.setSubscription);
+  const clearStoredSubscription = usePushSubscriptionStore((state) => state.clearSubscription);
 
   // Проверка поддержки Push-уведомлений
   useEffect(() => {
@@ -70,153 +203,23 @@ export function usePushNotifications(userId?: string) {
   }, []);
 
   // Регистрация Service Worker
-  const registerServiceWorker = useCallback(async () => {
-    if (Platform.OS !== 'web' || !('serviceWorker' in navigator)) {
-      return null;
-    }
-
-    try {
-      const registration = await navigator.serviceWorker.register('/service-worker.js');
-      console.log('Service Worker registered:', registration);
-      return registration;
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-      return null;
-    }
-  }, []);
+  const registerServiceWorker = useCallback(() => registerServiceWorkerInstance(), []);
 
   // Загрузка текущей подписки и синхронизация с БД
   const loadSubscription = useCallback(async () => {
-    if (Platform.OS !== 'web' || !userId) return;
-
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      
-      // 1. Проверяем подписку в браузере
-      const browserSubscription = await registration.pushManager.getSubscription();
-      
-      // 2. Проверяем подписку в БД
-      const { data: dbSubscriptions, error: dbError } = await supabase
-        .from('push_subscriptions')
-        .select('endpoint, p256dh, auth')
-        .eq('user_id', userId)
-        .limit(1);
-
-      if (dbError) {
-        console.error('Error loading subscription from DB:', dbError);
-      }
-
-      const dbSubscription = dbSubscriptions && dbSubscriptions.length > 0 ? dbSubscriptions[0] : null;
-
-      // 3. Синхронизация: если есть в БД, но нет в браузере - восстанавливаем
-      if (dbSubscription && !browserSubscription) {
-        const applicationServerKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY;
-        if (applicationServerKey) {
-          try {
-            const restoredSubscription = await registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(applicationServerKey) as any,
-            });
-            
-            const restoredJSON = restoredSubscription.toJSON();
-            // Обновляем endpoint в БД на новый (если изменился)
-            await supabase
-              .from('push_subscriptions')
-              .update({ 
-                endpoint: restoredJSON.endpoint!,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('user_id', userId)
-              .eq('endpoint', dbSubscription.endpoint);
-            
-            setSubscription({
-              endpoint: restoredJSON.endpoint!,
-              keys: {
-                p256dh: restoredJSON.keys!.p256dh!,
-                auth: restoredJSON.keys!.auth!,
-              },
-            });
-            console.log('✅ Push subscription restored from DB');
-            return;
-          } catch (error) {
-            console.error('Error restoring subscription:', error);
-          }
-        }
-      }
-
-      // 4. Если есть в браузере - сохраняем в БД (если еще нет)
-      if (browserSubscription && !dbSubscription) {
-        const subscriptionJSON = browserSubscription.toJSON();
-        const sub: PushSubscription = {
-          endpoint: subscriptionJSON.endpoint!,
-          keys: {
-            p256dh: subscriptionJSON.keys!.p256dh!,
-            auth: subscriptionJSON.keys!.auth!,
-          },
-        };
-        // Сохраняем напрямую, без использования callback
-        try {
-          const { error: saveError } = await supabase
-            .from('push_subscriptions')
-            .upsert({
-              user_id: userId,
-              endpoint: sub.endpoint,
-              p256dh: sub.keys.p256dh,
-              auth: sub.keys.auth,
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'user_id,endpoint',
-            });
-          if (saveError) {
-            console.error('Error syncing subscription to DB:', saveError);
-          } else {
-            console.log('✅ Push subscription synced to DB');
-          }
-        } catch (error) {
-          console.error('Error syncing subscription:', error);
-        }
-        setSubscription(sub);
-        return;
-      }
-
-      // 5. Если есть в обоих местах - используем браузерную версию
-      if (browserSubscription) {
-        const subscriptionJSON = browserSubscription.toJSON();
-        setSubscription({
-          endpoint: subscriptionJSON.endpoint!,
-          keys: {
-            p256dh: subscriptionJSON.keys!.p256dh!,
-            auth: subscriptionJSON.keys!.auth!,
-          },
-        });
-      } else {
-        setSubscription(null);
-      }
-    } catch (error) {
-      console.error('Error loading subscription:', error);
-    }
-  }, [userId]);
+    if (!userId) return;
+    await syncPushSubscription(userId, setStoredSubscription);
+  }, [userId, setStoredSubscription]);
 
   // Сохранение подписки в БД
-  const saveSubscriptionToDatabase = useCallback(async (sub: PushSubscription) => {
+  const saveSubscriptionToDatabase = useCallback(async (sub: StoredPushSubscription) => {
     if (!userId) {
       console.warn('Cannot save subscription: userId is missing');
       return false;
     }
 
     try {
-      const { data, error } = await supabase
-        .from('push_subscriptions')
-        .upsert({
-          user_id: userId,
-          endpoint: sub.endpoint,
-          p256dh: sub.keys.p256dh,
-          auth: sub.keys.auth,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,endpoint',
-        })
-        .select();
+      const { data, error } = await upsertSubscriptionRecord(userId, sub);
 
       if (error) {
         console.error('Error saving subscription to database:', error);
@@ -316,7 +319,7 @@ export function usePushNotifications(userId?: string) {
       });
 
       const subscriptionJSON = pushSubscription.toJSON();
-      const sub: PushSubscription = {
+      const sub: StoredPushSubscription = {
         endpoint: subscriptionJSON.endpoint!,
         keys: {
           p256dh: subscriptionJSON.keys!.p256dh!,
@@ -327,7 +330,7 @@ export function usePushNotifications(userId?: string) {
       // Сохраняем в БД
       const saved = await saveSubscriptionToDatabase(sub);
       if (saved) {
-        setSubscription(sub);
+        setStoredSubscription(sub);
         console.log('✅ Push subscription created and saved');
         setLoading(false);
         return true;
@@ -335,7 +338,7 @@ export function usePushNotifications(userId?: string) {
         // Если не удалось сохранить в БД, но подписка создана в браузере,
         // все равно показываем как включенную (пользователь видит toggle включен)
         console.warn('⚠️ Push subscription created in browser but failed to save to DB');
-        setSubscription(sub);
+        setStoredSubscription(sub);
         setLoading(false);
         return true; // Возвращаем true, чтобы toggle остался включенным
       }
@@ -359,7 +362,7 @@ export function usePushNotifications(userId?: string) {
       if (pushSubscription) {
         await pushSubscription.unsubscribe();
         await removeSubscriptionFromDatabase(pushSubscription.endpoint);
-        setSubscription(null);
+        clearStoredSubscription();
       }
 
       setLoading(false);
@@ -369,7 +372,7 @@ export function usePushNotifications(userId?: string) {
       setLoading(false);
       return false;
     }
-  }, [userId]);
+  }, [userId, clearStoredSubscription]);
 
   // Загружаем подписку при монтировании и при изменении userId
   useEffect(() => {
@@ -424,5 +427,14 @@ export function usePushNotifications(userId?: string) {
     unsubscribe,
     requestPermission,
   };
+}
+
+export async function ensureInitialPushRegistration(userId?: string) {
+  if (Platform.OS !== 'web' || !userId) {
+    return;
+  }
+
+  await registerServiceWorkerInstance();
+  await syncPushSubscription(userId);
 }
 

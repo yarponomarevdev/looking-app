@@ -63,6 +63,13 @@ function processServiceWorker(sourcePath, destPath) {
  */
 function postBuild() {
   console.log('📦 Post-build: копирование статических файлов...\n');
+
+  const vapidEnvValue = (process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY || '').trim();
+  if (!vapidEnvValue) {
+    console.error('❌ EXPO_PUBLIC_VAPID_PUBLIC_KEY не задан. Пересоберите, передав валидный VAPID ключ в окружение.');
+    console.error('ℹ️  Пример: EXPO_PUBLIC_VAPID_PUBLIC_KEY=... npm run build');
+    process.exit(1);
+  }
   
   // Проверяем существование папок
   if (!fs.existsSync(PUBLIC_DIR)) {

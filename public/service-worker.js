@@ -151,17 +151,21 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  event.waitUntil(
-    self.registration.showNotification(notificationData.title, {
-      body: notificationData.body,
-      icon: notificationData.icon,
-      badge: notificationData.badge,
-      tag: notificationData.tag,
-      data: notificationData.data,
-      requireInteraction: notificationData.requireInteraction,
-      vibrate: [200, 100, 200],
-    })
-  );
+  event.waitUntil((async () => {
+    try {
+      await self.registration.showNotification(notificationData.title, {
+        body: notificationData.body,
+        icon: notificationData.icon,
+        badge: notificationData.badge,
+        tag: notificationData.tag,
+        data: notificationData.data,
+        requireInteraction: notificationData.requireInteraction,
+        vibrate: [200, 100, 200],
+      });
+    } catch (error) {
+      console.error('[SW] Failed to display push notification:', error);
+    }
+  })());
 });
 
 // Обработка клика по уведомлению
