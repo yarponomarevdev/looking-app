@@ -39,6 +39,30 @@ export const MOSCOW_MALLS_WITH_COORDS: Mall[] = [
     longitude: 37.565527,
     address: 'площадь Киевского Вокзала, 2'
   },
+  { 
+    name: 'Афимолл',
+    latitude: 55.748963,
+    longitude: 37.539035,
+    address: 'Пресненская набережная, 2'
+  },
+  { 
+    name: 'Охотный ряд',
+    latitude: 55.755804,
+    longitude: 37.614608,
+    address: 'Манежная площадь, 1'
+  },
+  { 
+    name: 'Vegas',
+    latitude: 55.585051,
+    longitude: 37.723202,
+    address: '66-й км МКАД, владение 1'
+  },
+  { 
+    name: 'Columbus',
+    latitude: 55.612228,
+    longitude: 37.606924,
+    address: 'Ленинский проспект, 109'
+  },
 ];
 
 // Список названий для выбора в формах (обратная совместимость)

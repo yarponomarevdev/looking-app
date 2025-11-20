@@ -6,6 +6,7 @@
 // Динамическая версия кэша на основе даты сборки
 const BUILD_DATE = new Date().toISOString().split('T')[0].replace(/-/g, '');
 const CACHE_NAME = `looking-app-v${BUILD_DATE}`;
+const VAPID_PUBLIC_KEY = '[[VAPID_PUBLIC_KEY]]';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -127,8 +128,8 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: 'Looking',
     body: 'У вас новое уведомление',
-    icon: '/icon.png',
-    badge: '/favicon.png',
+    icon: '/android-chrome-192x192.png',
+    badge: '/favicon-48x48.png',
     tag: 'default',
     requireInteraction: false,
   };
@@ -196,3 +197,71 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('notificationclose', (event) => {
   console.log('Notification closed:', event);
 });
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  console.log('[SW] Push subscription expired, re-subscribing...');
+  event.waitUntil(
+    resubscribePush()
+      .then((sub) => {
+        if (sub) {
+          notifyClientsAboutSubscription(sub);
+        }
+      })
+      .catch((error) => console.error('[SW] Failed to resubscribe:', error))
+  );
+});
+
+function getResolvedVapidKey() {
+  if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.includes('[[VAPID_PUBLIC_KEY')) {
+    console.warn('[SW] VAPID public key is not configured');
+    return null;
+  }
+  return VAPID_PUBLIC_KEY;
+}
+
+function resubscribePush() {
+  const vapidKey = getResolvedVapidKey();
+  if (!vapidKey) {
+    return Promise.resolve(null);
+  }
+
+  return self.registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(vapidKey),
+  }).then((subscription) => {
+    console.log('[SW] Successfully re-subscribed to PushManager');
+    const json = subscription.toJSON();
+    return {
+      endpoint: json.endpoint,
+      keys: {
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+      },
+    };
+  });
+}
+
+function notifyClientsAboutSubscription(subscription) {
+  clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then((clientList) => {
+      clientList.forEach((client) => {
+        client.postMessage({
+          type: 'PUSH_SUBSCRIPTION_CHANGED',
+          subscription,
+        });
+      });
+    });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  const rawData = self.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}

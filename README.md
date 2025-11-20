@@ -228,6 +228,32 @@ APK будет в `android/app/build/outputs/apk/release/app-release.apk`
 3. **Задеплоить Edge Function** `send-push-notification`
 4. **Настроить триггер БД** для автоматической отправки
 
+### Настройка VAPID ключей
+1. Добавьте публичный ключ в `.env`:
+   ```env
+   EXPO_PUBLIC_VAPID_PUBLIC_KEY=BPczBqcwpi3u7Wfpn7dYiHkfOXHaI6uletj_N7HwCJ0hy0OFYl4_MuU48NuKNboJHN3f1o98X88bUOz-V3LCWqg
+   ```
+2. Выполните `npm run build` (или `npm run postbuild`) — скрипт внедрит ключ в `dist/service-worker.js`, чтобы сервис-воркер мог автоматически перевыпускать подписки (`pushsubscriptionchange`).
+3. Убедитесь, что в Supabase secrets заданы **те же** `VAPID_PUBLIC_KEY` и `VAPID_PRIVATE_KEY`. Иначе `web-push` не сможет расшифровать сообщения.
+
+> ⚠️ Без `EXPO_PUBLIC_VAPID_PUBLIC_KEY` пользователи перестанут получать уведомления после истечения браузерной подписки.
+
+### Привязка Supabase → Edge Function
+1. После деплоя функции установите параметры в базе:
+   ```sql
+   alter database postgres set app.settings.supabase_url = 'https://<project>.supabase.co';
+   alter database postgres set app.settings.service_role_key = '<service_role_key>';
+   ```
+2. Перезагрузите конфиг (`select pg_reload_conf();`) или переподключите БД, чтобы триггер увидел значения.
+3. Создайте подписку (включите push в PWA), затем отправьте тест:
+   ```bash
+   curl -X POST "https://<project>.supabase.co/functions/v1/send-push-notification" \
+     -H "Authorization: Bearer <service_role_key>" \
+     -H "Content-Type: application/json" \
+     -d '{"userId":"<uuid>","title":"Тест","message":"Push работает","type":"notification","url":"/notifications"}'
+   ```
+4. Просмотрите логи: `supabase functions logs send-push-notification --follow`.
+
 📚 **Инструкции:**
 - 🖱️ **Без CLI (рекомендую)**: [docs/PUSH_MANUAL_SETUP.md](./docs/PUSH_MANUAL_SETUP.md)
 - ⚡ **Быстрая настройка**: [docs/PUSH_QUICK_SETUP.md](./docs/PUSH_QUICK_SETUP.md)

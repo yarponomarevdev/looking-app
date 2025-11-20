@@ -23,18 +23,31 @@ function copyFile(source, destination) {
   }
 }
 
+function formatJsStringLiteral(value) {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, '\\\'');
+}
+
 /**
- * Обрабатывает service-worker.js и обновляет BUILD_DATE
+ * Обрабатывает service-worker.js и обновляет BUILD_DATE и VAPID ключ
  */
 function processServiceWorker(sourcePath, destPath) {
   try {
     let content = fs.readFileSync(sourcePath, 'utf8');
     
-    // Заменяем BUILD_DATE на текущую дату
     const buildDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
     content = content.replace(
-      /const BUILD_DATE = .*;/,
+      /const BUILD_DATE = .*?;/,
       `const BUILD_DATE = '${buildDate}';`
+    );
+
+    const vapidKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY || '';
+    if (!vapidKey) {
+      console.warn('⚠️  EXPO_PUBLIC_VAPID_PUBLIC_KEY не задан. Автопродление push-подписок не будет работать.');
+    }
+    const sanitizedKey = formatJsStringLiteral(vapidKey);
+    content = content.replace(
+      /const VAPID_PUBLIC_KEY = '.*?';/,
+      `const VAPID_PUBLIC_KEY = '${sanitizedKey}';`
     );
     
     fs.writeFileSync(destPath, content);

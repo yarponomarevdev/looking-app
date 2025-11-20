@@ -74,7 +74,7 @@ export function usePushNotifications(userId?: string) {
   }, [userId]);
 
   // Сохранение подписки в БД
-  const saveSubscriptionToDatabase = async (sub: PushSubscription) => {
+  const saveSubscriptionToDatabase = useCallback(async (sub: PushSubscription) => {
     if (!userId) return false;
 
     try {
@@ -87,7 +87,7 @@ export function usePushNotifications(userId?: string) {
           auth: sub.keys.auth,
           updated_at: new Date().toISOString(),
         }, {
-          onConflict: 'user_id,endpoint'
+          onConflict: 'user_id,endpoint',
         });
 
       if (error) throw error;
@@ -96,7 +96,7 @@ export function usePushNotifications(userId?: string) {
       console.error('Error saving subscription to database:', error);
       return false;
     }
-  };
+  }, [userId]);
 
   // Удаление подписки из БД
   const removeSubscriptionFromDatabase = async (endpoint: string) => {
@@ -162,10 +162,12 @@ export function usePushNotifications(userId?: string) {
         }
       }
 
-      // Получаем VAPID ключ из environment или используем временный
-      // В production нужно заменить на ваш реальный VAPID ключ
-      const applicationServerKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY || 
-        'BEl62iUYgUivxIkv69yViEuiBIa-Ib37J8xYqFj3jSUn7RdIuXCxOHRCwWMN3B6SIJ0BgqQ6LlLF82jJl5L2q5E';
+      const applicationServerKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!applicationServerKey) {
+        console.error('VAPID public key is not configured');
+        setLoading(false);
+        return false;
+      }
 
       // Подписываемся на push-уведомления
       const pushSubscription = await registration.pushManager.subscribe({
@@ -197,7 +199,7 @@ export function usePushNotifications(userId?: string) {
       setLoading(false);
       return false;
     }
-  }, [userId, permission, requestPermission, registerServiceWorker]);
+  }, [userId, permission, requestPermission, registerServiceWorker, saveSubscriptionToDatabase]);
 
   // Отписка от Push-уведомлений
   const unsubscribe = useCallback(async () => {
@@ -232,6 +234,33 @@ export function usePushNotifications(userId?: string) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSupported, userId]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      return undefined;
+    }
+
+    function handleServiceWorkerMessage(event: MessageEvent) {
+      if (event.data?.type !== 'PUSH_SUBSCRIPTION_CHANGED') {
+        return;
+      }
+      const incoming = event.data.subscription as PushSubscription | undefined;
+      if (!incoming) {
+        return;
+      }
+
+      saveSubscriptionToDatabase(incoming).then((saved) => {
+        if (saved) {
+          setSubscription(incoming);
+        }
+      });
+    }
+
+    navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+    };
+  }, [saveSubscriptionToDatabase]);
 
   return {
     isSupported,
