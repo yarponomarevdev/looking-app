@@ -35,7 +35,9 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 function isSafari(): boolean {
   if (typeof window === 'undefined') return false;
   const ua = window.navigator.userAgent;
-  return /^((?!chrome|android).)*safari/i.test(ua);
+  // Safari содержит "Safari" но НЕ содержит "Chrome" или "Chromium"
+  // Chrome на Windows может содержать "Safari" в UA (из-за WebKit), но также содержит "Chrome"
+  return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|FxiOS/i.test(ua);
 }
 
 // Проверка, запущено ли приложение как PWA (standalone mode)

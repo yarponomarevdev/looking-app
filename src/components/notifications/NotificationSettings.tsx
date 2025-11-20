@@ -23,7 +23,9 @@ export function NotificationSettings() {
   const isSafari = () => {
     if (typeof window === 'undefined') return false;
     const ua = window.navigator.userAgent;
-    return /^((?!chrome|android).)*safari/i.test(ua);
+    // Safari содержит "Safari" но НЕ содержит "Chrome" или "Chromium"
+    // Chrome на Windows может содержать "Safari" в UA (из-за WebKit), но также содержит "Chrome"
+    return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|FxiOS/i.test(ua);
   };
 
   const isStandalone = () => {
@@ -40,8 +42,13 @@ export function NotificationSettings() {
     return null;
   }
 
-  // Для Safari показываем предупреждение, если PWA не установлено
-  if (isSafari() && !isStandalone()) {
+  const isEnabled = !!subscription;
+
+  // Для Safari показываем предупреждение только если:
+  // 1. Это действительно Safari
+  // 2. PWA не установлено
+  // 3. Пользователь еще НЕ подписан (если уже подписан - значит работает)
+  if (isSafari() && !isStandalone() && !isEnabled && permission !== 'granted') {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -63,8 +70,6 @@ export function NotificationSettings() {
       </View>
     );
   }
-
-  const isEnabled = !!subscription;
 
   const handleToggle = async () => {
     if (isEnabled) {
