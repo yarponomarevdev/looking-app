@@ -15,6 +15,39 @@ interface PushSubscription {
   };
 }
 
+// Утилита для конвертации VAPID ключа (должна быть объявлена до использования)
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray as Uint8Array;
+}
+
+// Проверка, является ли браузер Safari
+function isSafari(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent;
+  return /^((?!chrome|android).)*safari/i.test(ua);
+}
+
+// Проверка, запущено ли приложение как PWA (standalone mode)
+function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    (window.matchMedia('(display-mode: standalone)').matches) ||
+    ((window.navigator as any).standalone) ||
+    document.referrer.includes('android-app://')
+  );
+}
+
 export function usePushNotifications(userId?: string) {
   const [isSupported, setIsSupported] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
@@ -80,7 +113,7 @@ export function usePushNotifications(userId?: string) {
           try {
             const restoredSubscription = await registration.pushManager.subscribe({
               userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(applicationServerKey),
+              applicationServerKey: urlBase64ToUint8Array(applicationServerKey) as any,
             });
             
             const restoredJSON = restoredSubscription.toJSON();
@@ -119,9 +152,28 @@ export function usePushNotifications(userId?: string) {
             auth: subscriptionJSON.keys!.auth!,
           },
         };
-        await saveSubscriptionToDatabase(sub);
+        // Сохраняем напрямую, без использования callback
+        try {
+          const { error: saveError } = await supabase
+            .from('push_subscriptions')
+            .upsert({
+              user_id: userId,
+              endpoint: sub.endpoint,
+              p256dh: sub.keys.p256dh,
+              auth: sub.keys.auth,
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'user_id,endpoint',
+            });
+          if (saveError) {
+            console.error('Error syncing subscription to DB:', saveError);
+          } else {
+            console.log('✅ Push subscription synced to DB');
+          }
+        } catch (error) {
+          console.error('Error syncing subscription:', error);
+        }
         setSubscription(sub);
-        console.log('✅ Push subscription synced to DB');
         return;
       }
 
@@ -141,7 +193,7 @@ export function usePushNotifications(userId?: string) {
     } catch (error) {
       console.error('Error loading subscription:', error);
     }
-  }, [userId, saveSubscriptionToDatabase]);
+  }, [userId]);
 
   // Сохранение подписки в БД
   const saveSubscriptionToDatabase = useCallback(async (sub: PushSubscription) => {
@@ -240,11 +292,12 @@ export function usePushNotifications(userId?: string) {
       // Регистрируем Service Worker
       let registration = await navigator.serviceWorker.ready;
       if (!registration) {
-        registration = await registerServiceWorker();
-        if (!registration) {
+        const newRegistration = await registerServiceWorker();
+        if (!newRegistration) {
           setLoading(false);
           return false;
         }
+        registration = newRegistration;
       }
 
       const applicationServerKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY;
@@ -257,7 +310,7 @@ export function usePushNotifications(userId?: string) {
       // Подписываемся на push-уведомления
       const pushSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(applicationServerKey),
+        applicationServerKey: urlBase64ToUint8Array(applicationServerKey) as any,
       });
 
       const subscriptionJSON = pushSubscription.toJSON();
@@ -320,9 +373,11 @@ export function usePushNotifications(userId?: string) {
   useEffect(() => {
     if (isSupported && userId) {
       console.log('🔄 Loading push subscription for user:', userId);
-      registerServiceWorker().then(() => {
+      registerServiceWorker().then((registration) => {
         // Ждем регистрации SW перед загрузкой подписки
-        loadSubscription();
+        if (registration) {
+          loadSubscription();
+        }
       });
     } else if (!userId) {
       console.log('⚠️ No userId, clearing subscription');
@@ -367,38 +422,5 @@ export function usePushNotifications(userId?: string) {
     unsubscribe,
     requestPermission,
   };
-}
-
-// Утилита для конвертации VAPID ключа
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-// Проверка, является ли браузер Safari
-function isSafari(): boolean {
-  if (typeof window === 'undefined') return false;
-  const ua = window.navigator.userAgent;
-  return /^((?!chrome|android).)*safari/i.test(ua);
-}
-
-// Проверка, запущено ли приложение как PWA (standalone mode)
-function isStandalone(): boolean {
-  if (typeof window === 'undefined') return false;
-  return (
-    (window.matchMedia('(display-mode: standalone)').matches) ||
-    ((window.navigator as any).standalone) ||
-    document.referrer.includes('android-app://')
-  );
 }
 
