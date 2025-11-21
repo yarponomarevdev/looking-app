@@ -91,7 +91,11 @@ CREATE POLICY "Stylists can insert own profile"
 -- ======================================
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
 DECLARE
   user_role TEXT;
 BEGIN
@@ -132,8 +136,13 @@ BEGIN
   END IF;
   
   RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Логируем ошибку для отладки
+  RAISE WARNING 'Error in handle_new_user: %', SQLERRM;
+  -- Возвращаем NEW, чтобы не блокировать создание пользователя
+  RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Триггер на создание пользователя
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
