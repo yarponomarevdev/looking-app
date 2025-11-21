@@ -51,17 +51,18 @@ export const useLookStore = create<LookState>((set, get) => ({
     set({ loading: true, error: null });
     
     try {
-      // Загружаем все образы с информацией о стилистах
+      // Загружаем образы только от активных стилистов
       const { data, error } = await supabase
         .from('stylist_looks')
         .select(`
           id, title, description, image_url, brands, price, created_at, updated_at,
           stylist_id,
-          stylists:stylist_id (
+          stylists!inner:stylist_id (
             id, user_id, bio, status, latitude, longitude, malls, brands, social_links, work_schedule, portfolio_images,
             profiles:user_id (full_name, avatar_url)
           )
         `)
+        .eq('stylists.status', 'active')
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -70,38 +71,35 @@ export const useLookStore = create<LookState>((set, get) => ({
       }
       
       // Преобразуем данные в нужный формат
-      const looks: StylistLook[] = (data || [])
-        .map((item: any) => {
-          const stylistData = item.stylists;
-          return {
-            id: item.id,
-            stylist_id: item.stylist_id,
-            title: item.title,
-            description: item.description,
-            image_url: item.image_url,
-            brands: item.brands || [],
-            price: item.price ?? null,
-            created_at: item.created_at,
-            updated_at: item.updated_at,
-            stylist: stylistData ? {
-              id: stylistData.id,
-              user_id: stylistData.user_id,
-              full_name: stylistData.profiles?.full_name || 'Без имени',
-              avatar_url: stylistData.profiles?.avatar_url,
-              bio: stylistData.bio,
-              status: stylistData.status,
-              latitude: stylistData.latitude,
-              longitude: stylistData.longitude,
-              malls: stylistData.malls || [],
-              brands: stylistData.brands || [],
-              social_links: stylistData.social_links || {},
-              work_schedule: stylistData.work_schedule || {},
-              portfolio_images: stylistData.portfolio_images || [],
-            } : undefined,
-          };
-        })
-        // Фильтруем образы: показываем только от активных стилистов
-        .filter(look => look.stylist && look.stylist.status === 'active');
+      const looks: StylistLook[] = (data || []).map((item: any) => {
+        const stylistData = item.stylists;
+        return {
+          id: item.id,
+          stylist_id: item.stylist_id,
+          title: item.title,
+          description: item.description,
+          image_url: item.image_url,
+          brands: item.brands || [],
+          price: item.price ?? null,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          stylist: stylistData ? {
+            id: stylistData.id,
+            user_id: stylistData.user_id,
+            full_name: stylistData.profiles?.full_name || 'Без имени',
+            avatar_url: stylistData.profiles?.avatar_url,
+            bio: stylistData.bio,
+            status: stylistData.status,
+            latitude: stylistData.latitude,
+            longitude: stylistData.longitude,
+            malls: stylistData.malls || [],
+            brands: stylistData.brands || [],
+            social_links: stylistData.social_links || {},
+            work_schedule: stylistData.work_schedule || {},
+            portfolio_images: stylistData.portfolio_images || [],
+          } : undefined,
+        };
+      });
       
       set({ looks, loading: false });
     } catch (error: any) {

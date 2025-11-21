@@ -64,7 +64,7 @@ export default function ProfileScreen({ navigation }: any) {
     fetchStylistLooks, 
     createLook, 
     deleteLook, 
-    fetchLooks, 
+    fetchLooks,
     removeFromFavorites 
   } = useLookStore();
   const { showAlert } = useAlert();
@@ -299,6 +299,8 @@ export default function ProfileScreen({ navigation }: any) {
     
     if (success) {
       setStylistStatus(status);
+      // Обновляем ленту образов, чтобы изменения отобразились сразу
+      await fetchLooks();
       showAlert(
         'Статус обновлен',
         `Ваш статус изменен на "${status === 'active' ? 'Активен' : 'Не активен'}"`
@@ -308,7 +310,7 @@ export default function ProfileScreen({ navigation }: any) {
     }
     
     setUpdatingStatus(false);
-  }, [user, updateStatus, showAlert]);
+  }, [user, updateStatus, showAlert, fetchLooks]);
 
   const handleSignOut = useCallback(async () => {
     // Подтверждение выхода
