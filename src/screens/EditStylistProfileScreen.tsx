@@ -745,6 +745,7 @@ const styles = StyleSheet.create({
   customBrandContainer: {
     flexDirection: 'row',
     marginTop: 12,
+    alignItems: 'center',
   },
   customBrandInput: {
     flex: 1,
@@ -752,13 +753,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+    marginRight: 8,
   },
   addButton: {
     backgroundColor: '#6200ee',
     borderRadius: 8,
-    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     justifyContent: 'center',
-    marginLeft: 8,
+    alignItems: 'center',
+    minWidth: 100,
   },
   addButtonText: {
     color: 'white',

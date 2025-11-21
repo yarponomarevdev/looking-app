@@ -150,8 +150,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
     overflow: 'hidden',
     ...(Platform.OS === 'web' ? {
       boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
