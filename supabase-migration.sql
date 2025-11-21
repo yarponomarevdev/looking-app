@@ -229,7 +229,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   title TEXT NOT NULL,
   message TEXT NOT NULL,
-  type TEXT CHECK (type IN ('booking_created', 'booking_confirmed', 'booking_rejected')) NOT NULL,
+  type TEXT CHECK (type IN ('booking_created', 'booking_confirmed', 'booking_rejected', 'booking_cancelled')) NOT NULL,
   related_booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,
   is_read BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -239,6 +239,65 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+
+-- ======================================
+-- Таблица push-подписок (PWA)
+-- ======================================
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, endpoint)
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_endpoint ON push_subscriptions(endpoint);
+
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own subscriptions" ON push_subscriptions;
+DROP POLICY IF EXISTS "Users can create own subscriptions" ON push_subscriptions;
+DROP POLICY IF EXISTS "Users can update own subscriptions" ON push_subscriptions;
+DROP POLICY IF EXISTS "Users can delete own subscriptions" ON push_subscriptions;
+
+CREATE POLICY "Users can view own subscriptions"
+  ON push_subscriptions
+  FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create own subscriptions"
+  ON push_subscriptions
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own subscriptions"
+  ON push_subscriptions
+  FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own subscriptions"
+  ON push_subscriptions
+  FOR DELETE
+  USING (auth.uid() = user_id);
+
+CREATE OR REPLACE FUNCTION update_push_subscriptions_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS push_subscriptions_updated_at ON push_subscriptions;
+CREATE TRIGGER push_subscriptions_updated_at
+  BEFORE UPDATE ON push_subscriptions
+  FOR EACH ROW
+  EXECUTE FUNCTION update_push_subscriptions_updated_at();
 
 -- ======================================
 -- RLS политики для bookings
@@ -415,6 +474,67 @@ CREATE TRIGGER on_booking_status_changed
   EXECUTE FUNCTION notify_booking_status_changed();
 
 -- ======================================
+-- Автоотправка push-уведомлений (pg_net + Edge Function)
+-- ======================================
+
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+
+CREATE OR REPLACE FUNCTION send_push_notification_trigger()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  notification_url TEXT;
+  service_role_key TEXT;
+BEGIN
+  notification_url := CASE
+    WHEN NEW.related_booking_id IS NOT NULL THEN '/bookings'
+    WHEN NEW.type IN ('booking_created', 'booking_confirmed', 'booking_rejected', 'booking_cancelled') THEN '/bookings'
+    ELSE '/notifications'
+  END;
+
+  service_role_key := COALESCE(
+    current_setting('app.settings.service_role_key', true),
+    'YOUR_SERVICE_ROLE_KEY'
+  );
+
+  IF service_role_key IS NULL OR service_role_key = '' OR service_role_key = 'YOUR_SERVICE_ROLE_KEY' THEN
+    RAISE WARNING 'Service role key not configured. Skipping push notification.';
+    RETURN NEW;
+  END IF;
+
+  PERFORM net.http_post(
+    url := 'https://bblovvqoltasbbwzrjlb.supabase.co/functions/v1/send-push-notification',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || service_role_key,
+      'apikey', service_role_key
+    ),
+    body := jsonb_build_object(
+      'userId', NEW.user_id::text,
+      'title', NEW.title,
+      'message', NEW.message,
+      'type', NEW.type,
+      'url', notification_url
+    )
+  );
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'Error queuing push notification: %', SQLERRM;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_notification_created_send_push ON notifications;
+CREATE TRIGGER on_notification_created_send_push
+  AFTER INSERT ON notifications
+  FOR EACH ROW
+  EXECUTE FUNCTION send_push_notification_trigger();
+
+-- ======================================
 -- Таблица образов стилистов (stylist looks/outfits)
 -- ======================================
 
@@ -563,3 +683,4 @@ CREATE INDEX IF NOT EXISTS idx_bookings_look_id ON bookings(look_id);
 -- После выполнения этого скрипта ваша база данных готова к работе
 -- ======================================
 
+-- Обновлено: 20.11.2025

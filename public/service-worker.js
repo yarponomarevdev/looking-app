@@ -85,6 +85,14 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Обработка сообщений от клиента для немедленной активации обновления
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    console.log('[SW] Received SKIP_WAITING message, activating new version');
+    self.skipWaiting();
+  }
+});
+
 // Обработка fetch запросов - Network First для HTML, Cache First для остального
 self.addEventListener('fetch', (event) => {
   const { request } = event;

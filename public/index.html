@@ -78,9 +78,11 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
+        let registration;
         navigator.serviceWorker
           .register('/service-worker.js')
-          .then((registration) => {
+          .then((reg) => {
+            registration = reg;
             console.log('Service Worker зарегистрирован:', registration.scope);
             
             // Принудительно проверяем обновления при каждой загрузке
@@ -95,9 +97,9 @@
               installingWorker.onstatechange = () => {
                 if (installingWorker.state === 'installed') {
                   if (navigator.serviceWorker.controller) {
-                    // Новая версия доступна. 
-                    // Логика перезагрузки обрабатывается в событии controllerchange ниже.
+                    // Новая версия доступна - отправляем custom event
                     console.log('Доступна новая версия контента.');
+                    window.dispatchEvent(new CustomEvent('PWA_UPDATE_AVAILABLE'));
                   } else {
                     console.log('Контент закэширован для офлайн-работы.');
                   }
@@ -108,6 +110,13 @@
           .catch((error) => {
             console.error('Ошибка регистрации Service Worker:', error);
           });
+
+        // Обработчик для команды на обновление от приложения
+        window.addEventListener('message', (event) => {
+          if (event.data?.type === 'SKIP_WAITING' && registration?.waiting) {
+            registration.waiting.postMessage({type: 'SKIP_WAITING'});
+          }
+        });
 
         // Перезагружаем страницу, когда новый SW берет управление (после skipWaiting)
         let refreshing = false;

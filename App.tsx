@@ -12,6 +12,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { supabase } from './src/lib/supabase';
 import { AlertProvider } from './src/components/alert/AlertProvider';
 import { UniversalInstallButton } from './src/components/pwa/UniversalInstallButton';
+import { PWAUpdatePrompt } from './src/components/pwa/PWAUpdatePrompt';
 import { PushNotificationPrompt } from './src/components/notifications/PushNotificationPrompt';
 import { ensureInitialPushRegistration } from './src/hooks/usePushNotifications';
 
@@ -127,6 +128,7 @@ export default function App() {
       <AppNavigator />
       <UniversalInstallButton />
       <PushNotificationPrompt />
+      <PWAUpdatePrompt />
       <StatusBar style="auto" />
     </AlertProvider>
   );
