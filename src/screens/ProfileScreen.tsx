@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Platform, Switch } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
@@ -59,7 +59,7 @@ const GuestProfileView = ({ navigation }: any) => (
 export default function ProfileScreen({ navigation }: any) {
   const { user, signOut } = useAuthStore();
   const { unreadCount, fetchNotifications } = useNotificationStore();
-  const { fetchStylistByUserId } = useStylistStore();
+  const { fetchStylistByUserId, updateStatus } = useStylistStore();
   const { 
     fetchStylistLooks, 
     createLook, 
@@ -80,6 +80,10 @@ export default function ProfileScreen({ navigation }: any) {
   // Избранные образы клиента
   const [favoriteLooks, setFavoriteLooks] = useState<StylistLook[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
+  
+  // Статус стилиста
+  const [stylistStatus, setStylistStatus] = useState<'active' | 'inactive'>('inactive');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const isStylist = user?.user_metadata?.role === 'stylist';
 
@@ -94,6 +98,8 @@ export default function ProfileScreen({ navigation }: any) {
     
     if (stylist) {
       setStylistId(stylist.id);
+      // Сохраняем статус стилиста
+      setStylistStatus(stylist.status);
       // Сохраняем бренды из профиля стилиста для автозаполнения при создании образа
       setStylistProfileBrands(stylist.brands || []);
       const looks = await fetchStylistLooks(stylist.id);
@@ -280,6 +286,30 @@ export default function ProfileScreen({ navigation }: any) {
     });
   }, [navigation]);
 
+  /**
+   * Переключение статуса стилиста
+   */
+  const handleToggleStatus = useCallback(async (newStatus: boolean) => {
+    if (!user) return;
+    
+    setUpdatingStatus(true);
+    const status: 'active' | 'inactive' = newStatus ? 'active' : 'inactive';
+    
+    const success = await updateStatus(user.id, status);
+    
+    if (success) {
+      setStylistStatus(status);
+      showAlert(
+        'Статус обновлен',
+        `Ваш статус изменен на "${status === 'active' ? 'Активен' : 'Не активен'}"`
+      );
+    } else {
+      showAlert('Ошибка', 'Не удалось обновить статус');
+    }
+    
+    setUpdatingStatus(false);
+  }, [user, updateStatus, showAlert]);
+
   const handleSignOut = useCallback(async () => {
     // Подтверждение выхода
     await new Promise<void>((resolve) => {
@@ -337,6 +367,36 @@ export default function ProfileScreen({ navigation }: any) {
             {isStylist ? 'Стилист' : 'Пользователь'}
           </Text>
         </View>
+
+        {/* Статус стилиста с переключателем */}
+        {isStylist && (
+          <View style={styles.statusSection}>
+            <View style={styles.statusRow}>
+              <View style={styles.statusTextContainer}>
+                <Text style={styles.statusLabel}>Статус:</Text>
+                <Text style={[
+                  styles.statusValue, 
+                  { color: stylistStatus === 'active' ? '#4CAF50' : '#999' }
+                ]}>
+                  {stylistStatus === 'active' ? '● Активен' : '● Не активен'}
+                </Text>
+              </View>
+              <Switch
+                value={stylistStatus === 'active'}
+                onValueChange={handleToggleStatus}
+                disabled={updatingStatus}
+                trackColor={{ false: '#d0d0d0', true: '#81c784' }}
+                thumbColor={stylistStatus === 'active' ? '#4CAF50' : '#f4f3f4'}
+                ios_backgroundColor="#d0d0d0"
+              />
+            </View>
+            <Text style={styles.statusHint}>
+              {stylistStatus === 'active' 
+                ? 'Вы видны клиентам и доступны для записи' 
+                : 'Вы скрыты от клиентов'}
+            </Text>
+          </View>
+        )}
 
         {/* Избранное (только для клиентов) */}
         {!isStylist && (
@@ -649,7 +709,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 16,
-    marginBottom: 24,
+    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
@@ -660,6 +720,37 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  statusSection: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 24,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statusTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusLabel: {
+    fontSize: 16,
+    color: '#666',
+  },
+  statusValue: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  statusHint: {
+    fontSize: 13,
+    color: '#999',
+    marginTop: 4,
   },
   menuSection: {
     width: '100%',
