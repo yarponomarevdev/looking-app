@@ -163,9 +163,6 @@ export function PWAUpdatePrompt() {
       ]}
     >
       <View style={styles.toastContent}>
-        {/* Иконка обновления */}
-        <Text style={styles.updateIcon}>🔄</Text>
-        
         {/* Текст */}
         <View style={styles.textContainer}>
           <Text style={styles.title}>Доступна новая версия</Text>
@@ -235,10 +232,6 @@ const styles = StyleSheet.create({
     maxWidth: 600,
     alignSelf: 'center',
     width: '100%',
-  },
-  updateIcon: {
-    fontSize: 28,
-    marginRight: 12,
   },
   textContainer: {
     flex: 1,
