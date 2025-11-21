@@ -71,6 +71,16 @@ export function PWAUpdatePrompt() {
     };
     
     checkVersion();
+    
+    // Периодически проверяем версию (каждые 5 минут) на случай если пользователь долго не перезагружает
+    const intervalId = setInterval(() => {
+      console.log('[PWAUpdatePrompt] Периодическая проверка версии...');
+      checkVersion();
+    }, 5 * 60 * 1000); // 5 минут
+    
+    return () => {
+      clearInterval(intervalId);
+    };
 
     window.addEventListener('PWA_UPDATE_AVAILABLE', handleUpdateAvailable);
 
