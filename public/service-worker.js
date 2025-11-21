@@ -64,8 +64,11 @@ self.addEventListener('install', (event) => {
         });
         return Promise.all(requestPromises);
       })
-      .then(() => self.skipWaiting())
+      // НЕ вызываем skipWaiting() автоматически - ждем команды от приложения
+      // .then(() => self.skipWaiting())
   );
+  // Устанавливаем Service Worker в состояние "waiting" вместо немедленной активации
+  // Это позволит показать пользователю уведомление об обновлении
 });
 
 // Активация Service Worker

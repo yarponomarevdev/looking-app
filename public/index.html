@@ -101,11 +101,18 @@
         function trackInstalling(worker) {
           worker.addEventListener('statechange', () => {
             console.log('[PWA Update] Worker state changed to:', worker.state);
-            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('[PWA Update] Новая версия установлена - показываем уведомление');
+            // Когда worker переходит в installed или waiting - показываем уведомление
+            if ((worker.state === 'installed' || worker.state === 'waiting') && navigator.serviceWorker.controller) {
+              console.log('[PWA Update] Новая версия установлена (state:', worker.state, ') - показываем уведомление');
               window.dispatchEvent(new CustomEvent('PWA_UPDATE_AVAILABLE'));
             }
           });
+          
+          // Также проверяем текущее состояние на случай если оно уже installed/waiting
+          if ((worker.state === 'installed' || worker.state === 'waiting') && navigator.serviceWorker.controller) {
+            console.log('[PWA Update] Worker уже в состоянии', worker.state, '- показываем уведомление');
+            window.dispatchEvent(new CustomEvent('PWA_UPDATE_AVAILABLE'));
+          }
         }
 
         navigator.serviceWorker
