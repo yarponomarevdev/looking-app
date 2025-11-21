@@ -56,13 +56,15 @@ export function PWAUpdatePrompt() {
         if (!response.ok) return;
         
         const buildInfo = await response.json();
-        const currentVersion = buildInfo.version;
-        const savedVersion = localStorage.getItem('pwa-build-version');
+        const currentBuildId = buildInfo.buildId;
+        const savedBuildId = localStorage.getItem('pwa-build-id');
         
-        console.log('[PWAUpdatePrompt] Версия на сервере:', currentVersion, 'Сохраненная:', savedVersion);
+        console.log('[PWAUpdatePrompt] Build ID на сервере:', currentBuildId);
+        console.log('[PWAUpdatePrompt] Сохраненный Build ID:', savedBuildId);
+        console.log('[PWAUpdatePrompt] Vercel Env:', buildInfo.vercelEnv);
         
-        if (savedVersion && savedVersion !== currentVersion) {
-          console.log('[PWAUpdatePrompt] Обнаружена новая версия при монтировании!');
+        if (savedBuildId && savedBuildId !== currentBuildId) {
+          console.log('[PWAUpdatePrompt] Обнаружен новый билд при монтировании!');
           showUpdatePrompt();
         }
       } catch (error) {
@@ -97,20 +99,22 @@ export function PWAUpdatePrompt() {
     console.log('[PWAUpdatePrompt] Кнопка "Обновить" нажата');
     setIsUpdating(true);
     
-    // Обновляем сохраненную версию билда
+    // Обновляем сохраненный Build ID
     try {
       const response = await fetch('/build-info.json?t=' + Date.now(), { cache: 'no-store' });
       if (response.ok) {
         const buildInfo = await response.json();
+        localStorage.setItem('pwa-build-id', buildInfo.buildId);
         localStorage.setItem('pwa-build-version', buildInfo.version);
-        console.log('[PWAUpdatePrompt] Версия обновлена:', buildInfo.version);
+        console.log('[PWAUpdatePrompt] Build ID обновлен:', buildInfo.buildId);
       }
     } catch (error) {
-      console.error('[PWAUpdatePrompt] Ошибка обновления версии:', error);
+      console.error('[PWAUpdatePrompt] Ошибка обновления Build ID:', error);
     }
     
     // Очищаем сохраненное состояние
     localStorage.removeItem('pwa-update-available');
+    localStorage.removeItem('pwa-new-build-id');
     
     // Отправляем команду Service Worker на активацию обновления
     console.log('[PWAUpdatePrompt] Отправляем SKIP_WAITING в window');

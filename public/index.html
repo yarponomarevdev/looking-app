@@ -91,28 +91,41 @@
             }
             
             const buildInfo = await response.json();
-            const currentVersion = buildInfo.version;
-            console.log('[PWA Update] Текущая версия на сервере:', currentVersion);
+            const currentBuildId = buildInfo.buildId;
+            const vercelEnv = buildInfo.vercelEnv;
             
-            // Получаем сохраненную версию
-            const savedVersion = localStorage.getItem('pwa-build-version');
-            console.log('[PWA Update] Сохраненная версия:', savedVersion);
+            console.log('[PWA Update] Build ID на сервере:', currentBuildId);
+            console.log('[PWA Update] Vercel Environment:', vercelEnv);
+            console.log('[PWA Update] Vercel Deployment ID:', buildInfo.vercelDeploymentId);
             
-            // Если версии разные - есть обновление
-            if (savedVersion && savedVersion !== currentVersion) {
-              console.log('[PWA Update] ✅ Обнаружена новая версия билда!');
+            // Получаем сохраненный build ID
+            const savedBuildId = localStorage.getItem('pwa-build-id');
+            console.log('[PWA Update] Сохраненный Build ID:', savedBuildId);
+            
+            // Если есть сохраненный ID и он отличается - есть обновление
+            if (savedBuildId && savedBuildId !== currentBuildId) {
+              console.log('[PWA Update] ✅ Обнаружен новый билд!');
+              console.log('[PWA Update] Старый:', savedBuildId);
+              console.log('[PWA Update] Новый:', currentBuildId);
+              
+              // Сохраняем информацию об обновлении
               localStorage.setItem('pwa-update-available', 'true');
+              localStorage.setItem('pwa-new-build-id', currentBuildId);
+              
               const event = new CustomEvent('PWA_UPDATE_AVAILABLE', { 
                 bubbles: true,
-                cancelable: true 
+                cancelable: true,
+                detail: { oldBuildId: savedBuildId, newBuildId: currentBuildId }
               });
               window.dispatchEvent(event);
               return true;
             }
             
-            // Сохраняем текущую версию
-            if (currentVersion) {
-              localStorage.setItem('pwa-build-version', currentVersion);
+            // Сохраняем текущий build ID
+            if (currentBuildId) {
+              localStorage.setItem('pwa-build-id', currentBuildId);
+              // Для обратной совместимости
+              localStorage.setItem('pwa-build-version', buildInfo.version);
             }
             
             return false;

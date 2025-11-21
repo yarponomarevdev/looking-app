@@ -164,18 +164,29 @@ function postBuild() {
     }
   }
   
-  // Создаем файл build-info.json с версией билда
+  // Создаем файл build-info.json с уникальным идентификатором билда
   const buildDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
+  const buildTimestamp = Date.now();
+  const buildId = `${buildDate}-${buildTimestamp}`;
+  
   const buildInfo = {
+    buildId: buildId,
     version: buildDate,
     buildDate: new Date().toISOString(),
-    timestamp: Date.now()
+    timestamp: buildTimestamp,
+    // Vercel deployment ID если доступен
+    vercelDeploymentId: process.env.VERCEL_DEPLOYMENT_ID || null,
+    vercelUrl: process.env.VERCEL_URL || null,
+    vercelEnv: process.env.VERCEL_ENV || null,
   };
   
   const buildInfoPath = path.join(DIST_DIR, 'build-info.json');
   try {
     fs.writeFileSync(buildInfoPath, JSON.stringify(buildInfo, null, 2));
-    console.log(`✅ build-info.json создан - версия: v${buildDate}`);
+    console.log(`✅ build-info.json создан`);
+    console.log(`   Build ID: ${buildId}`);
+    console.log(`   Vercel Env: ${buildInfo.vercelEnv || 'local'}`);
+    console.log(`   Vercel Deployment ID: ${buildInfo.vercelDeploymentId || 'N/A'}`);
   } catch (error) {
     console.error('❌ Ошибка при создании build-info.json:', error.message);
   }
