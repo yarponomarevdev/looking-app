@@ -27,7 +27,7 @@ if (Platform.OS !== 'web') {
 
 export default function MapScreen({ navigation }: any) {
   const { stylists, loading, fetchStylists, subscribeToUpdates } = useStylistStore();
-  const webViewRef = useRef<WebView>(null);
+  const webViewRef = useRef<any>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [selectedStylist, setSelectedStylist] = useState<Stylist | null>(null);
