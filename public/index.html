@@ -79,48 +79,88 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         let registration;
+        
+        // Функция для проверки и уведомления об обновлении
+        function checkForUpdate(reg) {
+          console.log('[PWA Update] Проверка обновлений...');
+          console.log('[PWA Update] Installing:', reg.installing);
+          console.log('[PWA Update] Waiting:', reg.waiting);
+          console.log('[PWA Update] Active:', reg.active);
+          console.log('[PWA Update] Controller:', navigator.serviceWorker.controller);
+          
+          // Если уже есть waiting worker - показываем уведомление
+          if (reg.waiting && navigator.serviceWorker.controller) {
+            console.log('[PWA Update] Обнаружен waiting worker - показываем уведомление');
+            window.dispatchEvent(new CustomEvent('PWA_UPDATE_AVAILABLE'));
+            return true;
+          }
+          return false;
+        }
+        
+        // Обработчик изменения состояния installing worker
+        function trackInstalling(worker) {
+          worker.addEventListener('statechange', () => {
+            console.log('[PWA Update] Worker state changed to:', worker.state);
+            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[PWA Update] Новая версия установлена - показываем уведомление');
+              window.dispatchEvent(new CustomEvent('PWA_UPDATE_AVAILABLE'));
+            }
+          });
+        }
+
         navigator.serviceWorker
           .register('/service-worker.js')
           .then((reg) => {
             registration = reg;
-            console.log('Service Worker зарегистрирован:', registration.scope);
+            console.log('[PWA Update] Service Worker зарегистрирован:', registration.scope);
+            
+            // Проверяем сразу после регистрации
+            if (!checkForUpdate(reg)) {
+              // Если нет waiting worker, следим за новыми обновлениями
+              reg.addEventListener('updatefound', () => {
+                console.log('[PWA Update] Обнаружено обновление!');
+                const newWorker = reg.installing;
+                if (newWorker) {
+                  trackInstalling(newWorker);
+                }
+              });
+            }
+            
+            // Периодически проверяем обновления (каждые 60 секунд)
+            setInterval(() => {
+              console.log('[PWA Update] Периодическая проверка обновлений...');
+              reg.update().then(() => {
+                checkForUpdate(reg);
+              });
+            }, 60000);
             
             // Принудительно проверяем обновления при каждой загрузке
-            registration.update();
-
-            // Если обнаружено обновление
-            registration.onupdatefound = () => {
-              const installingWorker = registration.installing;
-              if (installingWorker == null) {
-                return;
-              }
-              installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed') {
-                  if (navigator.serviceWorker.controller) {
-                    // Новая версия доступна - отправляем custom event
-                    console.log('Доступна новая версия контента.');
-                    window.dispatchEvent(new CustomEvent('PWA_UPDATE_AVAILABLE'));
-                  } else {
-                    console.log('Контент закэширован для офлайн-работы.');
-                  }
-                }
-              };
-            };
+            reg.update().then(() => {
+              console.log('[PWA Update] Проверка обновлений после загрузки');
+              checkForUpdate(reg);
+            });
           })
           .catch((error) => {
-            console.error('Ошибка регистрации Service Worker:', error);
+            console.error('[PWA Update] Ошибка регистрации Service Worker:', error);
           });
 
         // Обработчик для команды на обновление от приложения
         window.addEventListener('message', (event) => {
-          if (event.data?.type === 'SKIP_WAITING' && registration?.waiting) {
-            registration.waiting.postMessage({type: 'SKIP_WAITING'});
+          if (event.data?.type === 'SKIP_WAITING') {
+            console.log('[PWA Update] Получена команда SKIP_WAITING');
+            if (registration?.waiting) {
+              console.log('[PWA Update] Отправляем SKIP_WAITING в waiting worker');
+              registration.waiting.postMessage({type: 'SKIP_WAITING'});
+            } else {
+              console.log('[PWA Update] Нет waiting worker!');
+            }
           }
         });
 
         // Перезагружаем страницу, когда новый SW берет управление (после skipWaiting)
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('[PWA Update] Controller changed - перезагрузка...');
           if (!refreshing) {
             window.location.reload();
             refreshing = true;

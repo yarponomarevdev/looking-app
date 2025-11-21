@@ -386,7 +386,7 @@ export function usePushNotifications(userId?: string) {
       });
     } else if (!userId) {
       console.log('⚠️ No userId, clearing subscription');
-      setSubscription(null);
+      setStoredSubscription(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSupported, userId]);
@@ -405,9 +405,18 @@ export function usePushNotifications(userId?: string) {
         return;
       }
 
-      saveSubscriptionToDatabase(incoming).then((saved) => {
+      const incomingJSON = incoming.toJSON();
+      const storedSub: StoredPushSubscription = {
+        endpoint: incomingJSON.endpoint!,
+        keys: {
+          p256dh: incomingJSON.keys!.p256dh!,
+          auth: incomingJSON.keys!.auth!,
+        },
+      };
+
+      saveSubscriptionToDatabase(storedSub).then((saved) => {
         if (saved) {
-          setSubscription(incoming);
+          setStoredSubscription(storedSub);
         }
       });
     }

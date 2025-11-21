@@ -87,9 +87,12 @@ self.addEventListener('activate', (event) => {
 
 // Обработка сообщений от клиента для немедленной активации обновления
 self.addEventListener('message', (event) => {
+  console.log('[SW] Получено сообщение:', event.data);
   if (event.data?.type === 'SKIP_WAITING') {
-    console.log('[SW] Received SKIP_WAITING message, activating new version');
+    console.log('[SW] ✅ Получена команда SKIP_WAITING, вызываем skipWaiting()');
     self.skipWaiting();
+  } else {
+    console.log('[SW] Неизвестный тип сообщения:', event.data?.type);
   }
 });
 

@@ -13,10 +13,15 @@ export function PWAUpdatePrompt() {
 
   useEffect(() => {
     // Только для веб-платформы
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS !== 'web') {
+      console.log('[PWAUpdatePrompt] Не веб-платформа, пропускаем');
+      return;
+    }
+
+    console.log('[PWAUpdatePrompt] Компонент монтирован, слушаем PWA_UPDATE_AVAILABLE');
 
     const handleUpdateAvailable = () => {
-      console.log('[PWA] Update available, showing prompt');
+      console.log('[PWAUpdatePrompt] ✅ Получено событие PWA_UPDATE_AVAILABLE!');
       setShowPrompt(true);
       
       // Анимация появления снизу
@@ -30,20 +35,27 @@ export function PWAUpdatePrompt() {
 
     window.addEventListener('PWA_UPDATE_AVAILABLE', handleUpdateAvailable);
 
+    // Тестовое логирование
+    console.log('[PWAUpdatePrompt] Event listener добавлен для PWA_UPDATE_AVAILABLE');
+
     return () => {
+      console.log('[PWAUpdatePrompt] Компонент размонтирован, удаляем listener');
       window.removeEventListener('PWA_UPDATE_AVAILABLE', handleUpdateAvailable);
     };
   }, [slideAnim]);
 
   const handleUpdate = () => {
+    console.log('[PWAUpdatePrompt] Кнопка "Обновить" нажата');
     setIsUpdating(true);
     
     // Отправляем команду Service Worker на активацию обновления
+    console.log('[PWAUpdatePrompt] Отправляем SKIP_WAITING в window');
     window.postMessage({ type: 'SKIP_WAITING' }, '*');
     
     // Показываем загрузку 1500ms для плавного UX
     // Перезагрузка произойдет автоматически через controllerchange
     setTimeout(() => {
+      console.log('[PWAUpdatePrompt] Таймаут истек, перезагружаем страницу принудительно');
       // На случай если controllerchange не сработает
       if (Platform.OS === 'web') {
         window.location.reload();
@@ -52,6 +64,7 @@ export function PWAUpdatePrompt() {
   };
 
   const handleDismiss = () => {
+    console.log('[PWAUpdatePrompt] Кнопка "Отложить" нажата');
     // Анимация скрытия
     Animated.timing(slideAnim, {
       toValue: 100,
@@ -64,8 +77,13 @@ export function PWAUpdatePrompt() {
 
   // Не показываем на не-веб платформах или если промпт скрыт
   if (Platform.OS !== 'web' || !showPrompt) {
+    if (showPrompt) {
+      console.log('[PWAUpdatePrompt] showPrompt=true, но не веб-платформа');
+    }
     return null;
   }
+
+  console.log('[PWAUpdatePrompt] Рендерим toast, isUpdating:', isUpdating);
 
   return (
     <Animated.View 
