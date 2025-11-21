@@ -76,10 +76,12 @@ export default function ProfileScreen({ navigation }: any) {
   const [stylistId, setStylistId] = useState<string | null>(null);
   const [stylistProfileBrands, setStylistProfileBrands] = useState<string[]>([]); // Бренды из профиля стилиста
   const [loadingLooks, setLoadingLooks] = useState(false);
+  const [looksInitialized, setLooksInitialized] = useState(false);
   
   // Избранные образы клиента
   const [favoriteLooks, setFavoriteLooks] = useState<StylistLook[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [favoritesInitialized, setFavoritesInitialized] = useState(false);
   
   // Статус стилиста
   const [stylistStatus, setStylistStatus] = useState<'active' | 'inactive'>('inactive');
@@ -90,10 +92,13 @@ export default function ProfileScreen({ navigation }: any) {
   /**
    * Загрузка образов стилиста
    */
-  const loadStylistLooks = useCallback(async () => {
+  const loadStylistLooks = useCallback(async (options?: { forceReload?: boolean }) => {
     if (!user) return;
     
-    setLoadingLooks(true);
+    const shouldShowLoader = options?.forceReload || !looksInitialized;
+    if (shouldShowLoader) {
+      setLoadingLooks(true);
+    }
     const stylist = await fetchStylistByUserId(user.id);
     
     if (stylist) {
@@ -106,16 +111,22 @@ export default function ProfileScreen({ navigation }: any) {
       setStylistLooks(looks);
     }
     
-    setLoadingLooks(false);
-  }, [user, fetchStylistByUserId, fetchStylistLooks]);
+    setLooksInitialized(true);
+    if (shouldShowLoader) {
+      setLoadingLooks(false);
+    }
+  }, [user, fetchStylistByUserId, fetchStylistLooks, looksInitialized]);
 
   /**
    * Загрузка избранных образов клиента
    */
-  const loadFavoriteLooks = useCallback(async () => {
+  const loadFavoriteLooks = useCallback(async (options?: { forceReload?: boolean }) => {
     if (!user) return;
     
-    setLoadingFavorites(true);
+    const shouldShowLoader = options?.forceReload || !favoritesInitialized;
+    if (shouldShowLoader) {
+      setLoadingFavorites(true);
+    }
     
     try {
       // Получаем ID избранных образов
@@ -186,9 +197,12 @@ export default function ProfileScreen({ navigation }: any) {
       console.error('Ошибка загрузки избранного:', error);
       showAlert('Ошибка', 'Не удалось загрузить избранное');
     } finally {
-      setLoadingFavorites(false);
+      setFavoritesInitialized(true);
+      if (shouldShowLoader) {
+        setLoadingFavorites(false);
+      }
     }
-  }, [user]);
+  }, [user, favoritesInitialized, showAlert]);
 
   useEffect(() => {
     if (user) {
@@ -234,7 +248,7 @@ export default function ProfileScreen({ navigation }: any) {
           onPress: async () => {
             const success = await deleteLook(lookId);
             if (success) {
-              await loadStylistLooks();
+              await loadStylistLooks({ forceReload: true });
               showAlert('Успешно', 'Образ удален');
             } else {
               showAlert('Ошибка', 'Не удалось удалить образ');
@@ -264,7 +278,7 @@ export default function ProfileScreen({ navigation }: any) {
             onPress: async () => {
               const success = await removeFromFavorites(user.id, lookId);
               if (success) {
-                await loadFavoriteLooks();
+                await loadFavoriteLooks({ forceReload: true });
               } else {
                 showAlert('Ошибка', 'Не удалось удалить из избранного');
               }
