@@ -112,7 +112,7 @@ BEGIN
     INSERT INTO public.stylists (user_id, bio, status, latitude, longitude, malls, brands, social_links, work_schedule)
     VALUES (
       NEW.id,
-      'Расскажите о себе и своем опыте работы стилистом',
+      '',
       'inactive',  -- По умолчанию не активен, пока не пройдет модерацию
       55.7558,      -- Координаты центра Москвы по умолчанию
       37.6173,

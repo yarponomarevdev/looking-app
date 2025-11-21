@@ -390,7 +390,7 @@ export default function BookingModal({
                 style={styles.textArea}
                 multiline
                 numberOfLines={4}
-                placeholder="Например: Хочу подобрать вечерний образ"
+                placeholder="Хочу белую шапку"
                 placeholderTextColor="#999"
                 value={comment}
                 onChangeText={setComment}
