@@ -20,8 +20,9 @@ export function PWAUpdatePrompt() {
 
     console.log('[PWAUpdatePrompt] Компонент монтирован, слушаем PWA_UPDATE_AVAILABLE');
 
-    const handleUpdateAvailable = () => {
-      console.log('[PWAUpdatePrompt] ✅ Получено событие PWA_UPDATE_AVAILABLE!');
+    // Функция для показа промпта
+    const showUpdatePrompt = () => {
+      console.log('[PWAUpdatePrompt] ✅ Показываем промпт обновления');
       setShowPrompt(true);
       
       // Анимация появления снизу
@@ -32,6 +33,44 @@ export function PWAUpdatePrompt() {
         friction: 11,
       }).start();
     };
+
+    const handleUpdateAvailable = () => {
+      console.log('[PWAUpdatePrompt] ✅ Получено событие PWA_UPDATE_AVAILABLE!');
+      // Сохраняем в localStorage на случай если компонент размонтируется
+      localStorage.setItem('pwa-update-available', 'true');
+      showUpdatePrompt();
+    };
+
+    // Проверяем, есть ли уже сохраненное состояние обновления
+    const savedUpdateState = localStorage.getItem('pwa-update-available');
+    if (savedUpdateState === 'true') {
+      console.log('[PWAUpdatePrompt] Обнаружено сохраненное состояние обновления');
+      localStorage.removeItem('pwa-update-available');
+      showUpdatePrompt();
+    }
+
+    // Проверяем версию билда при монтировании
+    const checkVersion = async () => {
+      try {
+        const response = await fetch('/build-info.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!response.ok) return;
+        
+        const buildInfo = await response.json();
+        const currentVersion = buildInfo.version;
+        const savedVersion = localStorage.getItem('pwa-build-version');
+        
+        console.log('[PWAUpdatePrompt] Версия на сервере:', currentVersion, 'Сохраненная:', savedVersion);
+        
+        if (savedVersion && savedVersion !== currentVersion) {
+          console.log('[PWAUpdatePrompt] Обнаружена новая версия при монтировании!');
+          showUpdatePrompt();
+        }
+      } catch (error) {
+        console.error('[PWAUpdatePrompt] Ошибка проверки версии:', error);
+      }
+    };
+    
+    checkVersion();
 
     window.addEventListener('PWA_UPDATE_AVAILABLE', handleUpdateAvailable);
 
@@ -44,9 +83,24 @@ export function PWAUpdatePrompt() {
     };
   }, [slideAnim]);
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     console.log('[PWAUpdatePrompt] Кнопка "Обновить" нажата');
     setIsUpdating(true);
+    
+    // Обновляем сохраненную версию билда
+    try {
+      const response = await fetch('/build-info.json?t=' + Date.now(), { cache: 'no-store' });
+      if (response.ok) {
+        const buildInfo = await response.json();
+        localStorage.setItem('pwa-build-version', buildInfo.version);
+        console.log('[PWAUpdatePrompt] Версия обновлена:', buildInfo.version);
+      }
+    } catch (error) {
+      console.error('[PWAUpdatePrompt] Ошибка обновления версии:', error);
+    }
+    
+    // Очищаем сохраненное состояние
+    localStorage.removeItem('pwa-update-available');
     
     // Отправляем команду Service Worker на активацию обновления
     console.log('[PWAUpdatePrompt] Отправляем SKIP_WAITING в window');
@@ -65,6 +119,8 @@ export function PWAUpdatePrompt() {
 
   const handleDismiss = () => {
     console.log('[PWAUpdatePrompt] Кнопка "Отложить" нажата');
+    // Очищаем сохраненное состояние (но оно появится снова при следующей проверке)
+    localStorage.removeItem('pwa-update-available');
     // Анимация скрытия
     Animated.timing(slideAnim, {
       toValue: 100,
@@ -142,12 +198,11 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 9999,
     paddingHorizontal: 16,
-    paddingBottom: 20,
-    ...(Platform.OS === 'web' ? {
-      // Для веб используем env для безопасной области (iOS Safari)
-      paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
-    } : {}),
-  },
+    paddingBottom: Platform.select({
+      web: 20,
+      default: 20,
+    }),
+  } as any,
   toastContent: {
     backgroundColor: '#1e1e1e',
     borderRadius: 16,

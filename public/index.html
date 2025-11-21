@@ -80,9 +80,51 @@
       window.addEventListener('load', () => {
         let registration;
         
-        // Функция для проверки и уведомления об обновлении
+        // Функция для проверки версии билда
+        async function checkBuildVersion() {
+          try {
+            // Загружаем текущую версию билда с сервера
+            const response = await fetch('/build-info.json?t=' + Date.now(), { cache: 'no-store' });
+            if (!response.ok) {
+              console.log('[PWA Update] build-info.json не найден, пропускаем проверку');
+              return false;
+            }
+            
+            const buildInfo = await response.json();
+            const currentVersion = buildInfo.version;
+            console.log('[PWA Update] Текущая версия на сервере:', currentVersion);
+            
+            // Получаем сохраненную версию
+            const savedVersion = localStorage.getItem('pwa-build-version');
+            console.log('[PWA Update] Сохраненная версия:', savedVersion);
+            
+            // Если версии разные - есть обновление
+            if (savedVersion && savedVersion !== currentVersion) {
+              console.log('[PWA Update] ✅ Обнаружена новая версия билда!');
+              localStorage.setItem('pwa-update-available', 'true');
+              const event = new CustomEvent('PWA_UPDATE_AVAILABLE', { 
+                bubbles: true,
+                cancelable: true 
+              });
+              window.dispatchEvent(event);
+              return true;
+            }
+            
+            // Сохраняем текущую версию
+            if (currentVersion) {
+              localStorage.setItem('pwa-build-version', currentVersion);
+            }
+            
+            return false;
+          } catch (error) {
+            console.error('[PWA Update] Ошибка при проверке версии билда:', error);
+            return false;
+          }
+        }
+
+        // Функция для проверки и уведомления об обновлении (старая логика через SW)
         function checkForUpdate(reg) {
-          console.log('[PWA Update] Проверка обновлений...');
+          console.log('[PWA Update] Проверка обновлений через SW...');
           console.log('[PWA Update] Installing:', reg.installing);
           console.log('[PWA Update] Waiting:', reg.waiting);
           console.log('[PWA Update] Active:', reg.active);
@@ -90,8 +132,14 @@
           
           // Если уже есть waiting worker - показываем уведомление
           if (reg.waiting && navigator.serviceWorker.controller) {
-            console.log('[PWA Update] Обнаружен waiting worker - показываем уведомление');
-            window.dispatchEvent(new CustomEvent('PWA_UPDATE_AVAILABLE'));
+            console.log('[PWA Update] ✅ Обнаружен waiting worker - отправляем событие');
+            localStorage.setItem('pwa-update-available', 'true');
+            const event = new CustomEvent('PWA_UPDATE_AVAILABLE', { 
+              bubbles: true,
+              cancelable: true 
+            });
+            window.dispatchEvent(event);
+            console.log('[PWA Update] Событие отправлено');
             return true;
           }
           return false;
@@ -99,19 +147,30 @@
         
         // Обработчик изменения состояния installing worker
         function trackInstalling(worker) {
+          const notifyUpdate = () => {
+            console.log('[PWA Update] ✅ Новая версия установлена - отправляем событие');
+            localStorage.setItem('pwa-update-available', 'true');
+            const event = new CustomEvent('PWA_UPDATE_AVAILABLE', { 
+              bubbles: true,
+              cancelable: true 
+            });
+            window.dispatchEvent(event);
+            console.log('[PWA Update] Событие отправлено');
+          };
+
           worker.addEventListener('statechange', () => {
             console.log('[PWA Update] Worker state changed to:', worker.state);
             // Когда worker переходит в installed или waiting - показываем уведомление
             if ((worker.state === 'installed' || worker.state === 'waiting') && navigator.serviceWorker.controller) {
-              console.log('[PWA Update] Новая версия установлена (state:', worker.state, ') - показываем уведомление');
-              window.dispatchEvent(new CustomEvent('PWA_UPDATE_AVAILABLE'));
+              console.log('[PWA Update] Новая версия установлена (state:', worker.state, ')');
+              notifyUpdate();
             }
           });
           
           // Также проверяем текущее состояние на случай если оно уже installed/waiting
           if ((worker.state === 'installed' || worker.state === 'waiting') && navigator.serviceWorker.controller) {
-            console.log('[PWA Update] Worker уже в состоянии', worker.state, '- показываем уведомление');
-            window.dispatchEvent(new CustomEvent('PWA_UPDATE_AVAILABLE'));
+            console.log('[PWA Update] Worker уже в состоянии', worker.state);
+            notifyUpdate();
           }
         }
 
@@ -121,31 +180,25 @@
             registration = reg;
             console.log('[PWA Update] Service Worker зарегистрирован:', registration.scope);
             
-            // Проверяем сразу после регистрации
-            if (!checkForUpdate(reg)) {
-              // Если нет waiting worker, следим за новыми обновлениями
-              reg.addEventListener('updatefound', () => {
-                console.log('[PWA Update] Обнаружено обновление!');
-                const newWorker = reg.installing;
-                if (newWorker) {
-                  trackInstalling(newWorker);
-                }
-              });
-            }
-            
-            // Периодически проверяем обновления (каждые 60 секунд)
-            setInterval(() => {
-              console.log('[PWA Update] Периодическая проверка обновлений...');
-              reg.update().then(() => {
+            // Проверяем версию билда при загрузке (основной способ)
+            checkBuildVersion().then((hasUpdate) => {
+              if (!hasUpdate) {
+                // Если нет обновления по версии, проверяем через SW (fallback)
                 checkForUpdate(reg);
-              });
-            }, 60000);
-            
-            // Принудительно проверяем обновления при каждой загрузке
-            reg.update().then(() => {
-              console.log('[PWA Update] Проверка обновлений после загрузки');
-              checkForUpdate(reg);
+              }
             });
+            
+            // Следим за новыми обновлениями через SW (fallback)
+            reg.addEventListener('updatefound', () => {
+              console.log('[PWA Update] Обнаружено обновление через SW!');
+              const newWorker = reg.installing;
+              if (newWorker) {
+                trackInstalling(newWorker);
+              }
+            });
+            
+            // НЕ делаем периодическую проверку - только при деплое
+            // Проверяем версию билда только при загрузке страницы
           })
           .catch((error) => {
             console.error('[PWA Update] Ошибка регистрации Service Worker:', error);

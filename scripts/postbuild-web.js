@@ -10,6 +10,52 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 const DIST_DIR = path.join(__dirname, '../dist');
 
 /**
+ * Загружает переменные из .env файла
+ */
+function loadEnv() {
+  const envPath = path.join(__dirname, '../.env');
+  if (!fs.existsSync(envPath)) {
+    return;
+  }
+  
+  try {
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    const lines = envContent.split('\n');
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      // Пропускаем комментарии и пустые строки
+      if (!trimmedLine || trimmedLine.startsWith('#')) {
+        continue;
+      }
+      
+      // Парсим KEY=VALUE
+      const match = trimmedLine.match(/^([^=]+)=(.*)$/);
+      if (match) {
+        const key = match[1].trim();
+        let value = match[2].trim();
+        
+        // Убираем кавычки если есть
+        if ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        
+        // Устанавливаем в process.env только если еще не установлено
+        if (!process.env[key]) {
+          process.env[key] = value;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️  Не удалось загрузить .env файл:', error.message);
+  }
+}
+
+// Загружаем .env перед использованием
+loadEnv();
+
+/**
  * Копирует файл из source в destination
  */
 function copyFile(source, destination) {
@@ -65,10 +111,14 @@ function postBuild() {
   console.log('📦 Post-build: копирование статических файлов...\n');
 
   const vapidEnvValue = (process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY || '').trim();
+  console.log(`🔍 EXPO_PUBLIC_VAPID_PUBLIC_KEY: ${vapidEnvValue ? 'найден (' + vapidEnvValue.substring(0, 20) + '...)' : 'не найден'}`);
+  
   if (!vapidEnvValue) {
-    console.error('❌ EXPO_PUBLIC_VAPID_PUBLIC_KEY не задан. Пересоберите, передав валидный VAPID ключ в окружение.');
-    console.error('ℹ️  Пример: EXPO_PUBLIC_VAPID_PUBLIC_KEY=... npm run build');
-    process.exit(1);
+    console.warn('⚠️  EXPO_PUBLIC_VAPID_PUBLIC_KEY не задан. Push-уведомления не будут работать.');
+    console.warn('ℹ️  Для включения push-уведомлений установите EXPO_PUBLIC_VAPID_PUBLIC_KEY в .env');
+    console.warn('ℹ️  Продолжаем билд без VAPID ключа...\n');
+  } else {
+    console.log('✅ VAPID ключ найден, push-уведомления будут работать\n');
   }
   
   // Проверяем существование папок
@@ -114,6 +164,22 @@ function postBuild() {
     }
   }
   
+  // Создаем файл build-info.json с версией билда
+  const buildDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
+  const buildInfo = {
+    version: buildDate,
+    buildDate: new Date().toISOString(),
+    timestamp: Date.now()
+  };
+  
+  const buildInfoPath = path.join(DIST_DIR, 'build-info.json');
+  try {
+    fs.writeFileSync(buildInfoPath, JSON.stringify(buildInfo, null, 2));
+    console.log(`✅ build-info.json создан - версия: v${buildDate}`);
+  } catch (error) {
+    console.error('❌ Ошибка при создании build-info.json:', error.message);
+  }
+
   console.log('\n✨ Post-build завершен!');
   console.log(`📁 Файлы скопированы в: ${DIST_DIR}`);
 }
