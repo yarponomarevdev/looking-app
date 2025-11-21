@@ -619,17 +619,15 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   customBrandContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     marginTop: 12,
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
   customBrandInput: {
-    flex: 1,
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    marginRight: 8,
   },
   addButton: {
     backgroundColor: '#6200ee',
@@ -637,6 +635,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     justifyContent: 'center',
+    marginTop: 8,
+    alignSelf: 'stretch',
     alignItems: 'center',
     minWidth: 100,
   },

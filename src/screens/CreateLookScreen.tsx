@@ -474,11 +474,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   customBrandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   customBrandInput: {
-    flex: 1,
     backgroundColor: '#fff',
     borderRadius: 8,
     paddingHorizontal: 12,
@@ -486,7 +485,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    marginRight: 8,
   },
   addBrandButton: {
     paddingVertical: 12,
@@ -494,6 +492,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     backgroundColor: '#6200ee',
+    marginTop: 8,
+    alignSelf: 'stretch',
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 100,
