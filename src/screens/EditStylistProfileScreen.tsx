@@ -35,7 +35,7 @@ const DAYS_OF_WEEK = [
 
 export default function EditStylistProfileScreen({ navigation, route }: any) {
   const { user } = useAuthStore();
-  const { fetchStylistByUserId, updateStylist, updateStatus, fetchStylists } = useStylistStore();
+  const { fetchStylistByUserId, updateStylist, fetchStylists } = useStylistStore();
   const { showAlert } = useAlert();
   
   const [loading, setLoading] = useState(true);
@@ -45,16 +45,12 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
   // Основная информация
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [bio, setBio] = useState('');
-  const [status, setStatus] = useState<'active' | 'inactive'>('inactive');
   
   // Социальные сети
   const [instagram, setInstagram] = useState('');
   const [vk, setVk] = useState('');
   const [telegram, setTelegram] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  
-  // Торговые центры
-  const [selectedMalls, setSelectedMalls] = useState<string[]>([]);
   
   // Бренды
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -85,8 +81,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     if (stylist) {
       setAvatarUrl(stylist.avatar_url || user.user_metadata?.avatar_url || null);
       setBio(stylist.bio || '');
-      setStatus(stylist.status);
-      setSelectedMalls(stylist.malls || []);
       setSelectedBrands(stylist.brands || []);
       setWorkSchedule(stylist.work_schedule || workSchedule);
       
@@ -98,8 +92,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         setWhatsapp(stylist.social_links.whatsapp || '');
       }
     } else {
-      // Если профиль создается впервые, явно ставим статус 'inactive'
-      setStatus('inactive');
       // Также можно установить аватар по умолчанию из профиля auth
       setAvatarUrl(user.user_metadata?.avatar_url || null);
     }
@@ -201,19 +193,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     }
   };
 
-  const toggleMall = (mall: string) => {
-    if (selectedMalls.includes(mall)) {
-      setSelectedMalls(selectedMalls.filter(m => m !== mall));
-    } else {
-      // Если статус "Активен", можно выбрать только один ТЦ
-      if (status === 'active') {
-        setSelectedMalls([mall]);
-      } else {
-        setSelectedMalls([...selectedMalls, mall]);
-      }
-    }
-  };
-
   const toggleBrand = (brand: string) => {
     if (selectedBrands.includes(brand)) {
       setSelectedBrands(selectedBrands.filter(b => b !== brand));
@@ -245,12 +224,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
 
   const handleSave = async () => {
     if (!user) return;
-    
-    // Валидация: при статусе "Активен" обязательно нужен ТЦ
-    if (status === 'active' && selectedMalls.length === 0) {
-      showAlert('Ошибка', 'Выберите торговый центр для активации');
-      return;
-    }
 
     setSaving(true);
 
@@ -262,8 +235,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
 
     const updates: Partial<Stylist> = {
       bio,
-      status,
-      malls: selectedMalls,
       brands: selectedBrands,
       social_links,
       work_schedule: workSchedule,
@@ -282,29 +253,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     }
   };
 
-  const handleStatusChange = async (newStatus: 'active' | 'inactive') => {
-    if (!user) return;
-    
-    // Если переключаемся на "Активен" и выбрано больше одного ТЦ, оставляем только первый
-    if (newStatus === 'active' && selectedMalls.length > 1) {
-      setSelectedMalls([selectedMalls[0]]);
-      showAlert(
-        'Обратите внимание', 
-        `При статусе "Активен" можно выбрать только один торговый центр. Оставлен: ${selectedMalls[0]}`
-      );
-    }
-    
-    // Если переключаемся на "Активен" без выбранного ТЦ, показываем предупреждение
-    if (newStatus === 'active' && selectedMalls.length === 0) {
-      showAlert(
-        'Выберите торговый центр', 
-        'Для активации необходимо выбрать торговый центр, в котором вы работаете'
-      );
-    }
-    
-    setStatus(newStatus);
-    await updateStatus(user.id, newStatus);
-  };
 
   if (loading) {
     return (
@@ -345,30 +293,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
           )}
         </TouchableOpacity>
         <Text style={styles.avatarHint}>Нажмите на фото, чтобы изменить</Text>
-      </View>
-
-      {/* Статус */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Текущий статус</Text>
-        <Text style={styles.hint}>Выберите, доступны ли вы для новых записей</Text>
-        <View style={styles.statusButtons}>
-          <TouchableOpacity
-            style={[styles.statusButton, status === 'active' && styles.statusButtonActive]}
-            onPress={() => handleStatusChange('active')}
-          >
-            <Text style={[styles.statusButtonText, status === 'active' && styles.statusButtonTextActive]}>
-              Активен
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.statusButton, status === 'inactive' && styles.statusButtonActive]}
-            onPress={() => handleStatusChange('inactive')}
-          >
-            <Text style={[styles.statusButtonText, status === 'inactive' && styles.statusButtonTextActive]}>
-              Не активен
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Информация о себе */}
@@ -421,29 +345,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
           onChangeText={setWhatsapp}
           keyboardType="phone-pad"
         />
-      </View>
-
-      {/* Торговые центры */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Торговые центры</Text>
-        <Text style={styles.hint}>
-          {status === 'active' 
-            ? 'При статусе "Активен" можно выбрать только один торговый центр' 
-            : 'Выберите ТЦ, в которых вы работаете'}
-        </Text>
-        <View style={styles.tagContainer}>
-          {MOSCOW_MALLS.map((mall) => (
-            <TouchableOpacity
-              key={mall}
-              style={[styles.tag, selectedMalls.includes(mall) && styles.tagSelected]}
-              onPress={() => toggleMall(mall)}
-            >
-              <Text style={[styles.tagText, selectedMalls.includes(mall) && styles.tagTextSelected]}>
-                {mall}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       </View>
 
       {/* Бренды */}
@@ -661,31 +562,6 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     minHeight: 120,
-  },
-  statusButtons: {
-    flexDirection: 'row',
-  },
-  statusButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#ddd',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    marginLeft: 8,
-  },
-  statusButtonActive: {
-    borderColor: '#6200ee',
-    backgroundColor: '#6200ee',
-  },
-  statusButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  statusButtonTextActive: {
-    color: 'white',
   },
   tagContainer: {
     flexDirection: 'row',

@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Platform, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Platform, Switch, Modal, FlatList } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
@@ -14,6 +14,7 @@ import NotificationBadge from '../components/notifications/NotificationBadge';
 import { supabase } from '../lib/supabase';
 import { StylistLook } from '../types';
 import { useAlert } from '../components/alert/AlertProvider';
+import { MOSCOW_MALLS } from '../constants/malls';
 
 /**
  * Компонент для неавторизованных пользователей
@@ -86,6 +87,10 @@ export default function ProfileScreen({ navigation }: any) {
   // Статус стилиста
   const [stylistStatus, setStylistStatus] = useState<'active' | 'inactive'>('inactive');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [currentMall, setCurrentMall] = useState<string | null>(null);
+  
+  // Модальное окно выбора ТЦ
+  const [showMallModal, setShowMallModal] = useState(false);
 
   const isStylist = user?.user_metadata?.role === 'stylist';
 
@@ -105,6 +110,8 @@ export default function ProfileScreen({ navigation }: any) {
       setStylistId(stylist.id);
       // Сохраняем статус стилиста
       setStylistStatus(stylist.status);
+      // Сохраняем текущий ТЦ (берем первый, если есть)
+      setCurrentMall(stylist.malls && stylist.malls.length > 0 ? stylist.malls[0] : null);
       // Сохраняем бренды из профиля стилиста для автозаполнения при создании образа
       setStylistProfileBrands(stylist.brands || []);
       const looks = await fetchStylistLooks(stylist.id);
@@ -306,18 +313,65 @@ export default function ProfileScreen({ navigation }: any) {
   const handleToggleStatus = useCallback(async (newStatus: boolean) => {
     if (!user) return;
     
-    setUpdatingStatus(true);
     const status: 'active' | 'inactive' = newStatus ? 'active' : 'inactive';
     
+    // Если включаем статус "Активен", показываем модальное окно выбора ТЦ
+    if (status === 'active') {
+      setShowMallModal(true);
+      return;
+    }
+    
+    // Если выключаем статус, сразу деактивируем
+    setUpdatingStatus(true);
     const success = await updateStatus(user.id, status);
     
     if (success) {
       setStylistStatus(status);
-      // Обновляем ленту образов, чтобы изменения отобразились сразу
       await fetchLooks();
       showAlert(
         'Статус обновлен',
-        `Ваш статус изменен на "${status === 'active' ? 'Активен' : 'Не активен'}"`
+        'Вы скрыты от клиентов'
+      );
+    } else {
+      showAlert('Ошибка', 'Не удалось обновить статус');
+    }
+    
+    setUpdatingStatus(false);
+  }, [user, updateStatus, showAlert, fetchLooks]);
+  
+  /**
+   * Выбор ТЦ и активация стилиста
+   */
+  const handleSelectMall = useCallback(async (mallName: string) => {
+    if (!user) return;
+    
+    setUpdatingStatus(true);
+    setShowMallModal(false);
+    
+    // Обновляем статус на active и устанавливаем выбранный ТЦ
+    const { fetchStylistByUserId, updateStylist } = useStylistStore.getState();
+    
+    // Сначала обновляем ТЦ
+    const stylistUpdateSuccess = await updateStylist(user.id, {
+      malls: [mallName],
+    });
+    
+    if (!stylistUpdateSuccess) {
+      showAlert('Ошибка', 'Не удалось сохранить торговый центр');
+      setUpdatingStatus(false);
+      return;
+    }
+    
+    // Затем активируем статус
+    const success = await updateStatus(user.id, 'active');
+    
+    if (success) {
+      setStylistStatus('active');
+      setCurrentMall(mallName);
+      await fetchLooks();
+      showAlert(
+        'Статус обновлен',
+        `Вы активны в ${mallName}`
       );
     } else {
       showAlert('Ошибка', 'Не удалось обновить статус');
@@ -357,6 +411,7 @@ export default function ProfileScreen({ navigation }: any) {
   }
   
   return (
+    <>
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         {/* Аватар и информация */}
@@ -593,6 +648,58 @@ export default function ProfileScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
     </ScrollView>
+
+    {/* Модальное окно выбора ТЦ */}
+    <Modal
+      visible={showMallModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowMallModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Выберите торговый центр</Text>
+            <Text style={styles.modalSubtitle}>
+              Вы будете видны клиентам в этом ТЦ
+            </Text>
+          </View>
+          
+          <FlatList
+            data={MOSCOW_MALLS}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.mallItem,
+                  currentMall === item && styles.mallItemSelected
+                ]}
+                onPress={() => handleSelectMall(item)}
+              >
+                <Text style={[
+                  styles.mallItemText,
+                  currentMall === item && styles.mallItemTextSelected
+                ]}>
+                  {item}
+                </Text>
+                {currentMall === item && (
+                  <Text style={styles.mallItemCheck}>✓</Text>
+                )}
+              </TouchableOpacity>
+            )}
+            style={styles.mallList}
+          />
+          
+          <TouchableOpacity
+            style={styles.modalCancelButton}
+            onPress={() => setShowMallModal(false)}
+          >
+            <Text style={styles.modalCancelText}>Отмена</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  </>
   );
 }
 
@@ -920,6 +1027,75 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#999',
     marginTop: 2,
+  },
+  // Стили для модального окна выбора ТЦ
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingTop: 20,
+  },
+  modalHeader: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  mallList: {
+    maxHeight: 400,
+  },
+  mallItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  mallItemSelected: {
+    backgroundColor: '#f5f0ff',
+  },
+  mallItemText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  mallItemTextSelected: {
+    color: '#6200ee',
+    fontWeight: '600',
+  },
+  mallItemCheck: {
+    fontSize: 18,
+    color: '#6200ee',
+    fontWeight: 'bold',
+  },
+  modalCancelButton: {
+    padding: 20,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '600',
   },
 });
 
