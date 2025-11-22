@@ -30,6 +30,7 @@ export default function FeedScreen({ route }: any) {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuthStore();
   const { showToast } = useAlert();
+  const isStylist = user?.user_metadata?.role === 'stylist';
   const {
     looks,
     loading,
@@ -51,10 +52,10 @@ export default function FeedScreen({ route }: any) {
   // Загружаем образы и избранное при монтировании
   useEffect(() => {
     fetchLooks();
-    if (user) {
+    if (user && !isStylist) {
       fetchFavorites(user.id);
     }
-  }, [user]);
+  }, [user, isStylist]);
 
   // Обрабатываем deep link с параметрами стилиста и образа
   useEffect(() => {
@@ -77,16 +78,16 @@ export default function FeedScreen({ route }: any) {
   // Обновляем избранное при возврате на экран
   useFocusEffect(
     useCallback(() => {
-      if (user) {
+      if (user && !isStylist) {
         fetchFavorites(user.id);
       }
-    }, [user])
+    }, [user, isStylist])
   );
 
   // Обработка обновления списка
   const handleRefresh = async () => {
     await fetchLooks();
-    if (user) {
+    if (user && !isStylist) {
       await fetchFavorites(user.id);
     }
   };
@@ -101,6 +102,11 @@ export default function FeedScreen({ route }: any) {
         duration: 3000,
       });
       navigation.navigate('Auth');
+      return;
+    }
+
+    // Стилисты не могут добавлять в избранное
+    if (user.user_metadata?.role === 'stylist') {
       return;
     }
 
@@ -236,6 +242,7 @@ export default function FeedScreen({ route }: any) {
             onStylistPress={() => item.stylist && handleStylistPress(item.stylist.id)}
             onShare={() => handleShare(item)}
             onViewLook={() => handleViewLook(item)}
+            hideFavorite={isStylist}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -266,6 +273,7 @@ export default function FeedScreen({ route }: any) {
           }
         }}
         onShare={() => selectedLookForView && handleShare(selectedLookForView)}
+        hideFavorite={isStylist}
       />
     </SafeAreaView>
   );

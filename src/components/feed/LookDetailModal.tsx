@@ -29,6 +29,7 @@ interface LookDetailModalProps {
   onBookLook: () => void;
   onStylistPress: () => void;
   onShare: () => void;
+  hideFavorite?: boolean; // Скрыть кнопку избранного (для стилистов)
 }
 
 export default function LookDetailModal({
@@ -40,6 +41,7 @@ export default function LookDetailModal({
   onBookLook,
   onStylistPress,
   onShare,
+  hideFavorite = false,
 }: LookDetailModalProps) {
   if (!look) return null;
   const priceText = typeof look.price === 'string' ? look.price.trim() : '';
@@ -86,19 +88,21 @@ export default function LookDetailModal({
                 <Ionicons name="share-outline" size={28} color="#fff" />
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={onToggleFavorite}
-              style={styles.imageActionButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text>
-                <Ionicons
-                  name={isFavorited ? 'heart' : 'heart-outline'}
-                  size={30}
-                  color={isFavorited ? '#ff4757' : '#fff'}
-                />
-              </Text>
-            </TouchableOpacity>
+            {!hideFavorite && (
+              <TouchableOpacity
+                onPress={onToggleFavorite}
+                style={styles.imageActionButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text>
+                  <Ionicons
+                    name={isFavorited ? 'heart' : 'heart-outline'}
+                    size={30}
+                    color={isFavorited ? '#ff4757' : '#fff'}
+                  />
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Контент */}

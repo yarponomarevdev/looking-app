@@ -18,6 +18,7 @@ interface LookCardProps {
   onStylistPress: () => void;
   onShare: () => void; // Функция для шеринга образа
   onViewLook?: () => void; // Функция для просмотра образа в модальном окне
+  hideFavorite?: boolean; // Скрыть кнопку избранного (для стилистов)
 }
 
 export default function LookCard({
@@ -28,6 +29,7 @@ export default function LookCard({
   onStylistPress,
   onShare,
   onViewLook,
+  hideFavorite = false,
 }: LookCardProps) {
   const priceText = typeof look.price === 'string' ? look.price.trim() : '';
 
@@ -65,19 +67,21 @@ export default function LookCard({
                 />
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={onToggleFavorite}
-              style={styles.actionButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text>
-                <Ionicons
-                  name={isFavorited ? 'heart' : 'heart-outline'}
-                  size={24}
-                  color={isFavorited ? '#ff4757' : '#666'}
-                />
-              </Text>
-            </TouchableOpacity>
+            {!hideFavorite && (
+              <TouchableOpacity
+                onPress={onToggleFavorite}
+                style={styles.actionButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text>
+                  <Ionicons
+                    name={isFavorited ? 'heart' : 'heart-outline'}
+                    size={24}
+                    color={isFavorited ? '#ff4757' : '#666'}
+                  />
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
         {/* Описание */}
