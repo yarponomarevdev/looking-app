@@ -44,7 +44,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
   
   // Основная информация
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
   
   // Социальные сети
@@ -81,7 +80,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     
     if (stylist) {
       setAvatarUrl(stylist.avatar_url || user.user_metadata?.avatar_url || null);
-      setFullName(stylist.full_name || user.user_metadata?.full_name || '');
       setBio(stylist.bio || '');
       setSelectedBrands(stylist.brands || []);
       setWorkSchedule(stylist.work_schedule || workSchedule);
@@ -96,7 +94,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     } else {
       // Также можно установить аватар по умолчанию из профиля auth
       setAvatarUrl(user.user_metadata?.avatar_url || null);
-      setFullName(user.user_metadata?.full_name || '');
     }
     
     setLoading(false);
@@ -230,30 +227,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
 
     setSaving(true);
 
-    // Обновляем имя в таблице profiles
-    if (fullName.trim()) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ full_name: fullName.trim() })
-        .eq('id', user.id);
-
-      if (profileError) {
-        console.error('Ошибка обновления имени:', profileError);
-        showAlert('Ошибка', 'Не удалось обновить имя');
-        setSaving(false);
-        return;
-      }
-
-      // Обновляем метаданные пользователя
-      const { error: metadataError } = await supabase.auth.updateUser({
-        data: { full_name: fullName.trim() },
-      });
-
-      if (metadataError) {
-        console.error('Ошибка обновления метаданных:', metadataError);
-      }
-    }
-
     const social_links: SocialLinks = {};
     if (instagram) social_links.instagram = instagram;
     if (vk) social_links.vk = vk;
@@ -320,19 +293,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
           )}
         </TouchableOpacity>
         <Text style={styles.avatarHint}>Нажмите на фото, чтобы изменить</Text>
-      </View>
-
-      {/* Имя */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Имя</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Введите ваше имя"
-          placeholderTextColor="#999"
-          value={fullName}
-          onChangeText={setFullName}
-          autoCapitalize="words"
-        />
       </View>
 
       {/* Информация о себе */}

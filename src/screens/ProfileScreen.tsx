@@ -6,7 +6,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Platform, Switch, Modal, FlatList, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useStylistStore } from '../store/stylistStore';
@@ -487,19 +486,18 @@ export default function ProfileScreen({ navigation }: any) {
           )}
         </View>
 
-        <TouchableOpacity 
-          onPress={handleEditName}
-          style={styles.nameContainer}
-          activeOpacity={0.7}
-        >
+        <View style={styles.nameContainer}>
           <Text style={styles.name}>
             {user?.user_metadata?.full_name || 'Пользователь'}
           </Text>
-          <View style={styles.editNameIconContainer}>
-            <Ionicons name="create-outline" size={18} color="#6200ee" />
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.email}>{user?.email}</Text>
+          <TouchableOpacity 
+            onPress={handleEditName}
+            style={styles.editNameButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.editNameButtonText}>Изменить</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.infoSection}>
           <Text style={styles.infoLabel}>Роль:</Text>
@@ -937,7 +935,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 0,
   },
   email: {
     fontSize: 16,
@@ -1215,19 +1213,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   nameContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    alignSelf: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
   },
-  editNameIconContainer: {
-    padding: 4,
-    borderRadius: 6,
+  editNameButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     backgroundColor: '#f3e5f5',
-    marginLeft: 4,
+    borderWidth: 1,
+    borderColor: '#e1bee7',
+    marginTop: 8,
+  },
+  editNameButtonText: {
+    fontSize: 14,
+    color: '#6200ee',
+    fontWeight: '600',
   },
   modalBody: {
     padding: 20,
