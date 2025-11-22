@@ -137,9 +137,10 @@ serve(async (req) => {
         } catch (error: any) {
           console.error(`❌ Error sending to endpoint ${sub.endpoint.substring(0, 50)}:`, error.message)
           
-          // Если подписка недействительна (410 Gone или 404 Not Found), удаляем её
-          if (error.statusCode === 410 || error.statusCode === 404) {
-            console.log(`Removing invalid subscription: ${sub.id}`)
+          // Если подписка недействительна (410 Gone, 404 Not Found, или 403 Forbidden), удаляем её
+          // 403 Forbidden обычно означает неверные VAPID ключи или недействительный endpoint
+          if (error.statusCode === 410 || error.statusCode === 404 || error.statusCode === 403) {
+            console.log(`Removing invalid subscription: ${sub.id} (status: ${error.statusCode})`)
             await supabase
               .from('push_subscriptions')
               .delete()
