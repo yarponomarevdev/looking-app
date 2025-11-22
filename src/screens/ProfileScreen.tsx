@@ -4,8 +4,9 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Platform, Switch, Modal, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Platform, Switch, Modal, FlatList, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useStylistStore } from '../store/stylistStore';
@@ -91,6 +92,11 @@ export default function ProfileScreen({ navigation }: any) {
   
   // Модальное окно выбора ТЦ
   const [showMallModal, setShowMallModal] = useState(false);
+  
+  // Редактирование имени
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [editingName, setEditingName] = useState('');
+  const [savingName, setSavingName] = useState(false);
 
   const isStylist = user?.user_metadata?.role === 'stylist';
 
@@ -217,6 +223,60 @@ export default function ProfileScreen({ navigation }: any) {
       setAvatarUrl(user.user_metadata?.avatar_url || null);
     }
   }, [user]);
+
+  /**
+   * Открытие модального окна редактирования имени
+   */
+  const handleEditName = useCallback(() => {
+    setEditingName(user?.user_metadata?.full_name || '');
+    setShowEditNameModal(true);
+  }, [user]);
+
+  /**
+   * Сохранение имени
+   */
+  const handleSaveName = useCallback(async () => {
+    if (!user || !editingName.trim()) {
+      showAlert('Ошибка', 'Введите имя');
+      return;
+    }
+
+    setSavingName(true);
+    try {
+      // Обновляем имя в таблице profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ full_name: editingName.trim() })
+        .eq('id', user.id);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      // Обновляем метаданные пользователя
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { full_name: editingName.trim() },
+      });
+
+      if (metadataError) {
+        throw metadataError;
+      }
+
+      // Обновляем локальное состояние через перезагрузку сессии
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        useAuthStore.setState({ user: session.user, session });
+      }
+
+      setShowEditNameModal(false);
+      showAlert('Успешно', 'Имя обновлено');
+    } catch (error: any) {
+      console.error('Ошибка обновления имени:', error);
+      showAlert('Ошибка', error.message || 'Не удалось обновить имя');
+    } finally {
+      setSavingName(false);
+    }
+  }, [user, editingName, showAlert]);
 
   // Обновляем данные при фокусе на экране
   useFocusEffect(
@@ -427,9 +487,18 @@ export default function ProfileScreen({ navigation }: any) {
           )}
         </View>
 
-        <Text style={styles.name}>
-          {user?.user_metadata?.full_name || 'Пользователь'}
-        </Text>
+        <TouchableOpacity 
+          onPress={handleEditName}
+          style={styles.nameContainer}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.name}>
+            {user?.user_metadata?.full_name || 'Пользователь'}
+          </Text>
+          <View style={styles.editNameIconContainer}>
+            <Ionicons name="create-outline" size={18} color="#6200ee" />
+          </View>
+        </TouchableOpacity>
         <Text style={styles.email}>{user?.email}</Text>
 
         <View style={styles.infoSection}>
@@ -648,6 +717,54 @@ export default function ProfileScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
     </ScrollView>
+
+    {/* Модальное окно редактирования имени */}
+    <Modal
+      visible={showEditNameModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowEditNameModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Редактировать имя</Text>
+          </View>
+          
+          <View style={styles.modalBody}>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Введите ваше имя"
+              placeholderTextColor="#999"
+              value={editingName}
+              onChangeText={setEditingName}
+              autoCapitalize="words"
+              autoFocus
+            />
+          </View>
+          
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonCancel]}
+              onPress={() => setShowEditNameModal(false)}
+            >
+              <Text style={styles.modalButtonCancelText}>Отмена</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonSave]}
+              onPress={handleSaveName}
+              disabled={savingName || !editingName.trim()}
+            >
+              {savingName ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text style={styles.modalButtonSaveText}>Сохранить</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
 
     {/* Модальное окно выбора ТЦ */}
     <Modal
@@ -1095,6 +1212,60 @@ const styles = StyleSheet.create({
   modalCancelText: {
     fontSize: 16,
     color: '#999',
+    fontWeight: '600',
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  editNameIconContainer: {
+    padding: 4,
+    borderRadius: 6,
+    backgroundColor: '#f3e5f5',
+    marginLeft: 4,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalInput: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  modalButton: {
+    flex: 1,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonCancel: {
+    borderRightWidth: 1,
+    borderRightColor: '#f0f0f0',
+  },
+  modalButtonCancelText: {
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '600',
+  },
+  modalButtonSave: {
+    backgroundColor: '#6200ee',
+  },
+  modalButtonSaveText: {
+    fontSize: 16,
+    color: 'white',
     fontWeight: '600',
   },
 });

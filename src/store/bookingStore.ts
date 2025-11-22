@@ -308,6 +308,12 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         return [];
       }
       
+      // Проверяем, является ли выбранная дата сегодняшней
+      const today = new Date();
+      const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const selectedDateOnly = new Date(year, month - 1, day);
+      const isToday = todayDateOnly.getTime() === selectedDateOnly.getTime();
+      
       // Получаем занятые слоты
       const bookedSlots = await get().getBookedSlots(stylistId, date);
       const bookedTimes = new Set(bookedSlots.map(slot => slot.time));
@@ -326,9 +332,22 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         // Проверяем, занят ли слот
         const bookedSlot = bookedSlots.find(slot => slot.time === timeString);
         
+        // Если это сегодняшний день, проверяем, не прошло ли уже это время
+        let isAvailable = !bookedTimes.has(timeString);
+        if (isToday && isAvailable) {
+          const now = new Date();
+          const [slotHour, slotMinute] = timeString.split(':').map(Number);
+          const slotTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), slotHour, slotMinute);
+          
+          // Если время слота уже прошло, помечаем как недоступный
+          if (slotTime <= now) {
+            isAvailable = false;
+          }
+        }
+        
         slots.push({
           time: timeString,
-          available: !bookedTimes.has(timeString),
+          available: isAvailable,
           status: bookedSlot?.status,
         });
         

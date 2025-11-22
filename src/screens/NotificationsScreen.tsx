@@ -113,9 +113,17 @@ export default function NotificationsScreen({ navigation }: any) {
 
   if (notifications.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyIcon}>🔔</Text>
-        <Text style={styles.emptyText}>У вас пока нет уведомлений</Text>
+      <View style={styles.container}>
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyIcon}>🔔</Text>
+          <Text style={styles.emptyText}>У вас пока нет уведомлений</Text>
+        </View>
+        {/* Настройки push-уведомлений (только для веб) */}
+        {Platform.OS === 'web' && (
+          <View style={styles.settingsContainer}>
+            <NotificationSettings />
+          </View>
+        )}
       </View>
     );
   }

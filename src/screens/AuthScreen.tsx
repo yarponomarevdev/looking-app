@@ -20,7 +20,6 @@ export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'client' | 'stylist'>('client');
   const [loading, setLoading] = useState(false);
 
@@ -39,11 +38,6 @@ export default function AuthScreen() {
     try {
       // Валидация
       AuthSchema.parse({ email, password });
-
-      if (!isLogin && !fullName) {
-        showAlert('Ошибка', 'Введите ваше имя');
-        return;
-      }
     } catch (e: any) {
       if (e instanceof z.ZodError) {
         showAlert('Ошибка', e.errors[0].message);
@@ -60,7 +54,7 @@ export default function AuthScreen() {
         // Модальное окно закроется автоматически через useEffect при изменении user
       } else {
         console.log('Attempting sign up...');
-        await signUp(email, password, fullName, role);
+        await signUp(email, password, role);
         showAlert('Успех', 'Проверьте email для подтверждения регистрации');
       }
     } catch (error: any) {
@@ -102,41 +96,6 @@ export default function AuthScreen() {
 
         {/* Поля формы */}
         <View style={styles.form}>
-          {!isLogin && (
-            <>
-              <TextInput
-                style={styles.input}
-                placeholder="Ваше имя"
-                placeholderTextColor="#999"
-                value={fullName}
-                onChangeText={setFullName}
-                autoCapitalize="words"
-              />
-              
-              {/* Выбор роли */}
-              <View style={styles.roleContainer}>
-                <Text style={styles.roleLabel}>Кто вы?</Text>
-                <View style={styles.roleButtons}>
-                  <TouchableOpacity
-                    style={[styles.roleButton, role === 'client' && styles.roleButtonActive]}
-                    onPress={() => setRole('client')}
-                  >
-                    <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>
-                      Пользователь
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.roleButton, role === 'stylist' && styles.roleButtonActive]}
-                    onPress={() => setRole('stylist')}
-                  >
-                    <Text style={[styles.roleButtonText, role === 'stylist' && styles.roleButtonTextActive]}>
-                      Стилист
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </>
-          )}
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -163,6 +122,32 @@ export default function AuthScreen() {
             onSubmitEditing={handleAuth}
             returnKeyType="done"
           />
+
+          {!isLogin && (
+            <>
+              {/* Выбор роли */}
+              <View style={styles.roleContainer}>
+                <View style={styles.roleButtons}>
+                  <TouchableOpacity
+                    style={[styles.roleButton, role === 'client' && styles.roleButtonActive]}
+                    onPress={() => setRole('client')}
+                  >
+                    <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>
+                      Ищу образ
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.roleButton, role === 'stylist' && styles.roleButtonActive]}
+                    onPress={() => setRole('stylist')}
+                  >
+                    <Text style={[styles.roleButtonText, role === 'stylist' && styles.roleButtonTextActive]}>
+                      Создаю образы
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </>
+          )}
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -261,12 +246,6 @@ const styles = StyleSheet.create({
   },
   roleContainer: {
     marginBottom: 8,
-  },
-  roleLabel: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 8,
-    fontWeight: '500',
   },
   roleButtons: {
     flexDirection: 'row',

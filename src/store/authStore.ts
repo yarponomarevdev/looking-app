@@ -15,7 +15,7 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, role: 'client' | 'stylist') => Promise<void>;
+  signUp: (email: string, password: string, role: 'client' | 'stylist') => Promise<void>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
@@ -48,7 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
   
-  signUp: async (email, password, fullName, role) => {
+  signUp: async (email, password, role) => {
     // Определяем redirect URL в зависимости от платформы
     const redirectTo = Platform.OS === 'web' 
       ? 'https://looking-web.vercel.app' // TODO: Вынести в переменные окружения
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       email,
       password,
       options: { 
-        data: { full_name: fullName, role },
+        data: { role },
         emailRedirectTo: redirectTo
       }
     });
