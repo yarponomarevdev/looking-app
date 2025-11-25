@@ -67,31 +67,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   
   signOut: async () => {
     try {
-      // Получаем текущего пользователя перед выходом
-      // Убираем лишний запрос, берем пользователя из стора
-      const user = useAuthStore.getState().user;
-      
-      // Удаляем все push-подписки пользователя из БД
-      if (user?.id) {
-        await supabase
-          .from('push_subscriptions')
-          .delete()
-          .eq('user_id', user.id);
-      }
-      
-      // Отписываемся от push-уведомлений в браузере (только для веб)
-      if (Platform.OS === 'web' && 'serviceWorker' in navigator) {
-        try {
-          const registration = await navigator.serviceWorker.ready;
-          const pushSubscription = await registration.pushManager.getSubscription();
-          if (pushSubscription) {
-            await pushSubscription.unsubscribe();
-          }
-        } catch (error) {
-          console.error('Error unsubscribing from push:', error);
-        }
-      }
-      
       // Выполняем выход
       await supabase.auth.signOut();
       
