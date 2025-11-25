@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../store/authStore';
@@ -27,6 +27,10 @@ export default function AuthScreen() {
   const navigation = useNavigation();
   const { signIn, signUp, user } = useAuthStore();
   const { showAlert } = useAlert();
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  
+  // Определяем, является ли экран маленьким (меньше 700px по высоте)
+  const isSmallScreen = screenHeight < 700;
 
   // Закрываем модальное окно после успешного входа
   useEffect(() => {
@@ -74,40 +78,84 @@ export default function AuthScreen() {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       {/* Кнопка закрытия */}
       <TouchableOpacity
-        style={styles.closeButton}
+        style={[
+          styles.closeButton,
+          isSmallScreen && styles.closeButtonSmall
+        ]}
         onPress={() => navigation.goBack()}
         activeOpacity={0.7}
       >
-        <Ionicons name="close" size={28} color="#666" />
+        <Ionicons 
+          name="close" 
+          size={isSmallScreen ? 24 : 28} 
+          color="#666" 
+        />
       </TouchableOpacity>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>Looking</Text>
-        <Text style={styles.subtitle}>Найди своего стилиста</Text>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          isSmallScreen && styles.scrollContentSmall
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <Text style={[
+            styles.title,
+            isSmallScreen && styles.titleSmall
+          ]}>
+            Looking
+          </Text>
+          <Text style={[
+            styles.subtitle,
+            isSmallScreen && styles.subtitleSmall
+          ]}>
+            Найди своего стилиста
+          </Text>
 
         {/* Табы */}
-        <View style={styles.tabContainer}>
+        <View style={[
+          styles.tabContainer,
+          isSmallScreen && styles.tabContainerSmall
+        ]}>
           <TouchableOpacity
             style={[styles.tab, isLogin && styles.activeTab]}
             onPress={() => setIsLogin(true)}
           >
-            <Text style={[styles.tabText, isLogin && styles.activeTabText]}>Вход</Text>
+            <Text style={[
+              styles.tabText,
+              isLogin && styles.activeTabText,
+              isSmallScreen && styles.tabTextSmall
+            ]}>
+              Вход
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, !isLogin && styles.activeTab]}
             onPress={() => setIsLogin(false)}
           >
-            <Text style={[styles.tabText, !isLogin && styles.activeTabText]}>Регистрация</Text>
+            <Text style={[
+              styles.tabText,
+              !isLogin && styles.activeTabText,
+              isSmallScreen && styles.tabTextSmall
+            ]}>
+              Регистрация
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Поля формы */}
         <View style={styles.form}>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              isSmallScreen && styles.inputSmall
+            ]}
             placeholder="Email"
             placeholderTextColor="#999"
             value={email}
@@ -123,7 +171,10 @@ export default function AuthScreen() {
             returnKeyType="next"
           />
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              isSmallScreen && styles.inputSmall
+            ]}
             placeholder="Пароль"
             placeholderTextColor="#999"
             value={password}
@@ -137,20 +188,39 @@ export default function AuthScreen() {
             <>
               {/* Выбор роли */}
               <View style={styles.roleContainer}>
-                <View style={styles.roleButtons}>
+                <View style={[
+                  styles.roleButtons,
+                  isSmallScreen && styles.roleButtonsSmall
+                ]}>
                   <TouchableOpacity
-                    style={[styles.roleButton, role === 'client' && styles.roleButtonActive]}
+                    style={[
+                      styles.roleButton,
+                      role === 'client' && styles.roleButtonActive,
+                      isSmallScreen && styles.roleButtonSmall
+                    ]}
                     onPress={() => setRole('client')}
                   >
-                    <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>
+                    <Text style={[
+                      styles.roleButtonText,
+                      role === 'client' && styles.roleButtonTextActive,
+                      isSmallScreen && styles.roleButtonTextSmall
+                    ]}>
                       Ищу образ
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.roleButton, role === 'stylist' && styles.roleButtonActive]}
+                    style={[
+                      styles.roleButton,
+                      role === 'stylist' && styles.roleButtonActive,
+                      isSmallScreen && styles.roleButtonSmall
+                    ]}
                     onPress={() => setRole('stylist')}
                   >
-                    <Text style={[styles.roleButtonText, role === 'stylist' && styles.roleButtonTextActive]}>
+                    <Text style={[
+                      styles.roleButtonText,
+                      role === 'stylist' && styles.roleButtonTextActive,
+                      isSmallScreen && styles.roleButtonTextSmall
+                    ]}>
                       Создаю образы
                     </Text>
                   </TouchableOpacity>
@@ -160,17 +230,25 @@ export default function AuthScreen() {
           )}
 
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[
+              styles.button,
+              loading && styles.buttonDisabled,
+              isSmallScreen && styles.buttonSmall
+            ]}
             onPress={handleAuth}
             disabled={loading}
             activeOpacity={0.7}
           >
-            <Text style={styles.buttonText}>
+            <Text style={[
+              styles.buttonText,
+              isSmallScreen && styles.buttonTextSmall
+            ]}>
               {loading ? 'Загрузка...' : isLogin ? 'Войти' : 'Зарегистрироваться'}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -200,10 +278,27 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  content: {
-    flex: 1,
+  closeButtonSmall: {
+    top: Platform.OS === 'ios' ? 40 : 15,
+    right: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 80,
+    paddingBottom: 40,
+  },
+  scrollContentSmall: {
+    paddingTop: 60,
+    paddingBottom: 30,
+    paddingHorizontal: 16,
+  },
+  content: {
+    width: '100%',
   },
   title: {
     fontSize: 48,
@@ -212,17 +307,28 @@ const styles = StyleSheet.create({
     color: '#6200ee',
     marginBottom: 8,
   },
+  titleSmall: {
+    fontSize: 36,
+    marginBottom: 6,
+  },
   subtitle: {
     fontSize: 18,
     textAlign: 'center',
     color: '#666',
     marginBottom: 40,
   },
+  subtitleSmall: {
+    fontSize: 16,
+    marginBottom: 24,
+  },
   tabContainer: {
     flexDirection: 'row',
     marginBottom: 24,
     borderRadius: 8,
     overflow: 'hidden',
+  },
+  tabContainerSmall: {
+    marginBottom: 20,
   },
   tab: {
     flex: 1,
@@ -236,6 +342,9 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 16,
     color: '#666',
+  },
+  tabTextSmall: {
+    fontSize: 14,
   },
   activeTabText: {
     color: 'white',
@@ -251,6 +360,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     marginBottom: 16,
+    minHeight: 50,
+  },
+  inputSmall: {
+    padding: 12,
+    fontSize: 15,
+    marginBottom: 12,
+    minHeight: 48,
   },
   button: {
     backgroundColor: '#6200ee',
@@ -258,10 +374,17 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
+    minHeight: 50,
+    justifyContent: 'center',
     ...(Platform.OS === 'web' && {
       cursor: 'pointer',
       userSelect: 'none' as any,
     }),
+  },
+  buttonSmall: {
+    padding: 14,
+    minHeight: 48,
+    marginTop: 6,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -274,6 +397,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  buttonTextSmall: {
+    fontSize: 16,
+  },
   roleContainer: {
     marginBottom: 8,
   },
@@ -281,23 +407,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  roleButtonsSmall: {
+    gap: 8,
+  },
   roleButton: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 2,
     borderColor: '#6200ee',
     backgroundColor: 'white',
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  roleButtonSmall: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    minHeight: 44,
   },
   roleButtonActive: {
     backgroundColor: '#6200ee',
   },
   roleButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6200ee',
     fontWeight: '500',
+    textAlign: 'center',
+  },
+  roleButtonTextSmall: {
+    fontSize: 13,
   },
   roleButtonTextActive: {
     color: 'white',
