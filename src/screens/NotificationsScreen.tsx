@@ -5,6 +5,7 @@
 
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { Notification } from '../types';
@@ -105,15 +106,17 @@ export default function NotificationsScreen({ navigation }: any) {
 
   if (loading && notifications.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
-      </View>
+      <SafeAreaView style={styles.container} edges={['top', 'right', 'left']}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#6200ee" />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (notifications.length === 0) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'right', 'left']}>
         <View style={styles.centerContainer}>
           <Text style={styles.emptyIcon}>🔔</Text>
           <Text style={styles.emptyText}>У вас пока нет уведомлений</Text>
@@ -124,14 +127,14 @@ export default function NotificationsScreen({ navigation }: any) {
             <NotificationSettings />
           </View>
         )}
-      </View>
+      </SafeAreaView>
     );
   }
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'right', 'left']}>
       {/* Настройки push-уведомлений (только для веб) */}
       {Platform.OS === 'web' && (
         <View style={styles.settingsContainer}>
@@ -155,7 +158,7 @@ export default function NotificationsScreen({ navigation }: any) {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

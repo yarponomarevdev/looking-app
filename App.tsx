@@ -7,6 +7,7 @@
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, StyleSheet, Linking, Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/store/authStore';
 import AppNavigator from './src/navigation/AppNavigator';
 import { supabase } from './src/lib/supabase';
@@ -124,13 +125,15 @@ export default function App() {
   }
 
   return (
-    <AlertProvider>
-      <AppNavigator />
-      <UniversalInstallButton />
-      <PushNotificationPrompt />
-      <PWAUpdatePrompt />
-      <StatusBar style="auto" />
-    </AlertProvider>
+    <SafeAreaProvider>
+      <AlertProvider>
+        <AppNavigator />
+        <UniversalInstallButton />
+        <PushNotificationPrompt />
+        <PWAUpdatePrompt />
+        <StatusBar style="auto" />
+      </AlertProvider>
+    </SafeAreaProvider>
   );
 }
 
