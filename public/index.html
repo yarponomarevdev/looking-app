@@ -67,6 +67,21 @@
     #root {
       display: flex;
       flex-direction: column;
+      /* Поддержка safe-area для веб-платформы */
+      padding-left: env(safe-area-inset-left, 0);
+      padding-right: env(safe-area-inset-right, 0);
+      padding-top: env(safe-area-inset-top, 0);
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    
+    /* Дополнительная поддержка для элементов с абсолютным позиционированием */
+    @supports (padding: max(0px)) {
+      #root {
+        padding-left: max(env(safe-area-inset-left), 0px);
+        padding-right: max(env(safe-area-inset-right), 0px);
+        padding-top: max(env(safe-area-inset-top), 0px);
+        padding-bottom: max(env(safe-area-inset-bottom), 0px);
+      }
     }
   </style>
 </head>
