@@ -5,13 +5,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 export function PushNotificationPrompt() {
   const { user } = useAuthStore();
-  const insets = useSafeAreaInsets();
   const { isSupported, permission, subscription, loading, subscribe } = usePushNotifications(user?.id);
   const [dismissed, setDismissed] = useState(false);
 
@@ -75,10 +73,7 @@ export function PushNotificationPrompt() {
   };
 
   return (
-    <View style={[styles.container, { 
-      left: Math.max(insets.left, 20),
-      right: Math.max(insets.right, 20),
-    }]}>
+    <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <Text style={styles.icon}>🔔</Text>

@@ -5,13 +5,11 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Switch } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 export function NotificationSettings() {
   const { user } = useAuthStore();
-  const insets = useSafeAreaInsets();
   const { 
     isSupported, 
     permission, 
@@ -98,10 +96,7 @@ export function NotificationSettings() {
   };
 
   return (
-    <View style={[styles.container, { 
-      paddingRight: Math.max(insets.right, 16),
-      paddingLeft: Math.max(insets.left, 16),
-    }]}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.title}>Push-уведомления</Text>

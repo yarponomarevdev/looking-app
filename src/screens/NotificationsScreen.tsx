@@ -117,16 +117,16 @@ export default function NotificationsScreen({ navigation }: any) {
   if (notifications.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'right', 'left']}>
-        <View style={styles.centerContainer}>
-          <Text style={styles.emptyIcon}>🔔</Text>
-          <Text style={styles.emptyText}>У вас пока нет уведомлений</Text>
-        </View>
-        {/* Настройки push-уведомлений (только для веб) */}
+        {/* Настройки push-уведомлений (только для веб) - зафиксированы вверху */}
         {Platform.OS === 'web' && (
           <View style={styles.settingsContainer}>
             <NotificationSettings />
           </View>
         )}
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyIcon}>🔔</Text>
+          <Text style={styles.emptyText}>У вас пока нет уведомлений</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -135,7 +135,7 @@ export default function NotificationsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'right', 'left']}>
-      {/* Настройки push-уведомлений (только для веб) */}
+      {/* Настройки push-уведомлений (только для веб) - зафиксированы вверху */}
       {Platform.OS === 'web' && (
         <View style={styles.settingsContainer}>
           <NotificationSettings />
@@ -157,6 +157,7 @@ export default function NotificationsScreen({ navigation }: any) {
         renderItem={renderNotification}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        style={styles.list}
       />
     </SafeAreaView>
   );
@@ -170,12 +171,18 @@ const styles = StyleSheet.create({
   settingsContainer: {
     padding: 16,
     paddingBottom: 8,
+    backgroundColor: '#f5f5f5',
+    zIndex: 10,
+  },
+  list: {
+    flex: 1,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    paddingTop: 0,
   },
   header: {
     flexDirection: 'row',
