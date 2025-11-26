@@ -53,12 +53,9 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       if (isLogin) {
-        console.log('Attempting sign in...');
         await signIn(email, password);
-        console.log('Sign in successful');
         // Модальное окно закроется автоматически через useEffect при изменении user
       } else {
-        console.log('Attempting sign up...');
         await signUp(email, password, role);
         showAlert('Успех', 'Проверьте email для подтверждения регистрации');
       }

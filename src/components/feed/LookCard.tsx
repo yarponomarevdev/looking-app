@@ -3,7 +3,7 @@
  * Отображает изображение, название, описание, стилиста и кнопки действий
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StylistLook } from '../../types';
@@ -21,7 +21,7 @@ interface LookCardProps {
   hideFavorite?: boolean; // Скрыть кнопку избранного (для стилистов)
 }
 
-export default function LookCard({
+function LookCard({
   look,
   isFavorited,
   onToggleFavorite,
@@ -31,7 +31,10 @@ export default function LookCard({
   onViewLook,
   hideFavorite = false,
 }: LookCardProps) {
-  const priceText = typeof look.price === 'string' ? look.price.trim() : '';
+  const priceText = useMemo(() => 
+    typeof look.price === 'string' ? look.price.trim() : '', 
+    [look.price]
+  );
 
   return (
     <View style={styles.card}>
@@ -294,5 +297,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
+});
+
+// Мемоизация компонента для предотвращения лишних ререндеров
+export default React.memo(LookCard, (prevProps, nextProps) => {
+  // Кастомная функция сравнения для оптимизации
+  return (
+    prevProps.look.id === nextProps.look.id &&
+    prevProps.look.image_url === nextProps.look.image_url &&
+    prevProps.look.title === nextProps.look.title &&
+    prevProps.look.description === nextProps.look.description &&
+    prevProps.look.price === nextProps.look.price &&
+    JSON.stringify(prevProps.look.brands) === JSON.stringify(nextProps.look.brands) &&
+    prevProps.isFavorited === nextProps.isFavorited &&
+    prevProps.hideFavorite === nextProps.hideFavorite &&
+    prevProps.look.stylist?.id === nextProps.look.stylist?.id &&
+    prevProps.look.stylist?.full_name === nextProps.look.stylist?.full_name &&
+    prevProps.look.stylist?.avatar_url === nextProps.look.stylist?.avatar_url
+  );
 });
 

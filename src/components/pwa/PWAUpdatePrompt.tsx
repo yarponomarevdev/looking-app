@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Animated } from 'react-native';
+import { logger } from '../../utils/logger';
 
 export function PWAUpdatePrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
@@ -14,15 +15,15 @@ export function PWAUpdatePrompt() {
   useEffect(() => {
     // Только для веб-платформы
     if (Platform.OS !== 'web') {
-      console.log('[PWAUpdatePrompt] Не веб-платформа, пропускаем');
+      logger.log('[PWAUpdatePrompt] Не веб-платформа, пропускаем');
       return;
     }
 
-    console.log('[PWAUpdatePrompt] Компонент монтирован, слушаем PWA_UPDATE_AVAILABLE');
+    logger.log('[PWAUpdatePrompt] Компонент монтирован, слушаем PWA_UPDATE_AVAILABLE');
 
     // Функция для показа промпта
     const showUpdatePrompt = () => {
-      console.log('[PWAUpdatePrompt] ✅ Показываем промпт обновления');
+      logger.log('[PWAUpdatePrompt] ✅ Показываем промпт обновления');
       setShowPrompt(true);
       
       // Анимация появления снизу
@@ -35,7 +36,7 @@ export function PWAUpdatePrompt() {
     };
 
     const handleUpdateAvailable = () => {
-      console.log('[PWAUpdatePrompt] ✅ Получено событие PWA_UPDATE_AVAILABLE!');
+      logger.log('[PWAUpdatePrompt] ✅ Получено событие PWA_UPDATE_AVAILABLE!');
       // Сохраняем в localStorage на случай если компонент размонтируется
       localStorage.setItem('pwa-update-available', 'true');
       showUpdatePrompt();
@@ -44,7 +45,7 @@ export function PWAUpdatePrompt() {
     // Проверяем, есть ли уже сохраненное состояние обновления
     const savedUpdateState = localStorage.getItem('pwa-update-available');
     if (savedUpdateState === 'true') {
-      console.log('[PWAUpdatePrompt] Обнаружено сохраненное состояние обновления');
+      logger.log('[PWAUpdatePrompt] Обнаружено сохраненное состояние обновления');
       localStorage.removeItem('pwa-update-available');
       showUpdatePrompt();
     }
@@ -59,12 +60,12 @@ export function PWAUpdatePrompt() {
         const currentBuildId = buildInfo.buildId;
         const savedBuildId = localStorage.getItem('pwa-build-id');
         
-        console.log('[PWAUpdatePrompt] Build ID на сервере:', currentBuildId);
-        console.log('[PWAUpdatePrompt] Сохраненный Build ID:', savedBuildId);
-        console.log('[PWAUpdatePrompt] Vercel Env:', buildInfo.vercelEnv);
+        logger.log('[PWAUpdatePrompt] Build ID на сервере:', currentBuildId);
+        logger.log('[PWAUpdatePrompt] Сохраненный Build ID:', savedBuildId);
+        logger.log('[PWAUpdatePrompt] Vercel Env:', buildInfo.vercelEnv);
         
         if (savedBuildId && savedBuildId !== currentBuildId) {
-          console.log('[PWAUpdatePrompt] Обнаружен новый билд при монтировании!');
+          logger.log('[PWAUpdatePrompt] Обнаружен новый билд при монтировании!');
           showUpdatePrompt();
         }
       } catch (error) {
@@ -76,27 +77,23 @@ export function PWAUpdatePrompt() {
     
     // Периодически проверяем версию (каждые 30 секунд) для быстрого обнаружения новых деплоев
     const intervalId = setInterval(() => {
-      console.log('[PWAUpdatePrompt] Периодическая проверка версии...');
+      logger.log('[PWAUpdatePrompt] Периодическая проверка версии...');
       checkVersion();
     }, 30 * 1000); // 30 секунд
-    
-    return () => {
-      clearInterval(intervalId);
-    };
 
     window.addEventListener('PWA_UPDATE_AVAILABLE', handleUpdateAvailable);
 
-    // Тестовое логирование
-    console.log('[PWAUpdatePrompt] Event listener добавлен для PWA_UPDATE_AVAILABLE');
+    logger.log('[PWAUpdatePrompt] Event listener добавлен для PWA_UPDATE_AVAILABLE');
 
     return () => {
-      console.log('[PWAUpdatePrompt] Компонент размонтирован, удаляем listener');
+      logger.log('[PWAUpdatePrompt] Компонент размонтирован, удаляем listener');
+      clearInterval(intervalId);
       window.removeEventListener('PWA_UPDATE_AVAILABLE', handleUpdateAvailable);
     };
   }, [slideAnim]);
 
   const handleUpdate = async () => {
-    console.log('[PWAUpdatePrompt] Кнопка "Обновить" нажата');
+    logger.log('[PWAUpdatePrompt] Кнопка "Обновить" нажата');
     setIsUpdating(true);
     
     // Обновляем сохраненный Build ID
@@ -106,10 +103,10 @@ export function PWAUpdatePrompt() {
         const buildInfo = await response.json();
         localStorage.setItem('pwa-build-id', buildInfo.buildId);
         localStorage.setItem('pwa-build-version', buildInfo.version);
-        console.log('[PWAUpdatePrompt] Build ID обновлен:', buildInfo.buildId);
+        logger.log('[PWAUpdatePrompt] Build ID обновлен:', buildInfo.buildId);
       }
     } catch (error) {
-      console.error('[PWAUpdatePrompt] Ошибка обновления Build ID:', error);
+      logger.error('[PWAUpdatePrompt] Ошибка обновления Build ID:', error);
     }
     
     // Очищаем сохраненное состояние
@@ -117,13 +114,13 @@ export function PWAUpdatePrompt() {
     localStorage.removeItem('pwa-new-build-id');
     
     // Отправляем команду Service Worker на активацию обновления
-    console.log('[PWAUpdatePrompt] Отправляем SKIP_WAITING в window');
+    logger.log('[PWAUpdatePrompt] Отправляем SKIP_WAITING в window');
     window.postMessage({ type: 'SKIP_WAITING' }, '*');
     
     // Показываем загрузку 1500ms для плавного UX
     // Перезагрузка произойдет автоматически через controllerchange
     setTimeout(() => {
-      console.log('[PWAUpdatePrompt] Таймаут истек, перезагружаем страницу принудительно');
+      logger.log('[PWAUpdatePrompt] Таймаут истек, перезагружаем страницу принудительно');
       // На случай если controllerchange не сработает
       if (Platform.OS === 'web') {
         window.location.reload();
@@ -132,7 +129,7 @@ export function PWAUpdatePrompt() {
   };
 
   const handleDismiss = () => {
-    console.log('[PWAUpdatePrompt] Кнопка "Отложить" нажата');
+    logger.log('[PWAUpdatePrompt] Кнопка "Отложить" нажата');
     // Очищаем сохраненное состояние (но оно появится снова при следующей проверке)
     localStorage.removeItem('pwa-update-available');
     // Анимация скрытия
@@ -148,12 +145,12 @@ export function PWAUpdatePrompt() {
   // Не показываем на не-веб платформах или если промпт скрыт
   if (Platform.OS !== 'web' || !showPrompt) {
     if (showPrompt) {
-      console.log('[PWAUpdatePrompt] showPrompt=true, но не веб-платформа');
+      logger.log('[PWAUpdatePrompt] showPrompt=true, но не веб-платформа');
     }
     return null;
   }
 
-  console.log('[PWAUpdatePrompt] Рендерим toast, isUpdating:', isUpdating);
+  logger.log('[PWAUpdatePrompt] Рендерим toast, isUpdating:', isUpdating);
 
   return (
     <Animated.View 

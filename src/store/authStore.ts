@@ -51,8 +51,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   signUp: async (email, password, role) => {
     // Определяем redirect URL в зависимости от платформы
     const redirectTo = Platform.OS === 'web' 
-      ? 'https://looking-web.vercel.app' // TODO: Вынести в переменные окружения
-      : 'lookingapp://auth/callback';
+      ? process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL || 'https://looking-web.vercel.app'
+      : process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL_MOBILE || 'lookingapp://auth/callback';
     
     const { error } = await supabase.auth.signUp({
       email,

@@ -118,8 +118,9 @@ export default function AppNavigator() {
   const { user } = useAuthStore();
 
   // Конфигурация deep linking для шеринга образов
+  const baseUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://looking-web.vercel.app';
   const linking = React.useMemo(() => ({
-    prefixes: ['https://looking-web.vercel.app', 'http://looking-web.vercel.app', 'looking-app://'],
+    prefixes: [baseUrl, baseUrl.replace('https://', 'http://'), 'looking-app://'],
     config: {
       screens: {
         Main: {
@@ -155,21 +156,20 @@ export default function AppNavigator() {
         // Парсим URL, обрабатывая разные форматы
         let urlObj: URL;
         
+        const appBaseUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://looking-web.vercel.app';
         if (path.startsWith('http')) {
           urlObj = new URL(path);
         } else if (path.startsWith('/')) {
-          urlObj = new URL(`https://looking-web.vercel.app${path}`);
+          urlObj = new URL(`${appBaseUrl}${path}`);
         } else if (path.includes('?')) {
           // Если это query-параметры без домена
-          urlObj = new URL(`https://looking-web.vercel.app/?${path.split('?')[1]}`);
+          urlObj = new URL(`${appBaseUrl}/?${path.split('?')[1]}`);
         } else {
-          urlObj = new URL(`https://looking-web.vercel.app/${path}`);
+          urlObj = new URL(`${appBaseUrl}/${path}`);
         }
         
         const stylistId = urlObj.searchParams.get('stylist');
         const lookId = urlObj.searchParams.get('look');
-        
-        console.log('Deep link parsed:', { path, stylistId, lookId });
         
         // Если есть параметры stylist и look, открываем Feed с параметрами
         // Feed сам обработает эти параметры и откроет модальное окно с образом
@@ -201,7 +201,7 @@ export default function AppNavigator() {
       // Используем стандартную обработку для остальных путей
       return undefined;
     },
-  }), []);
+  }), [baseUrl]);
 
   return (
     <NavigationContainer 

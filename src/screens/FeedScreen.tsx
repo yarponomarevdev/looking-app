@@ -4,7 +4,7 @@
  * и заказа консультации с выбранным образом
  */
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -65,7 +65,6 @@ export default function FeedScreen({ route }: any) {
       if (look) {
         // Небольшая задержка, чтобы экран успел отобразиться
         const timer = setTimeout(() => {
-          console.log('Opening look from deep link:', { stylistId, lookId });
           setSelectedLookForView(look);
           setShowLookModal(true);
         }, 300);
@@ -85,15 +84,15 @@ export default function FeedScreen({ route }: any) {
   );
 
   // Обработка обновления списка
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     await fetchLooks();
     if (user && !isStylist) {
       await fetchFavorites(user.id);
     }
-  };
+  }, [user, isStylist, fetchLooks, fetchFavorites]);
 
   // Переключение избранного
-  const handleToggleFavorite = async (lookId: string) => {
+  const handleToggleFavorite = useCallback(async (lookId: string) => {
     if (!user) {
       // Если пользователь не авторизован, предлагаем войти
       showToast({
@@ -123,23 +122,23 @@ export default function FeedScreen({ route }: any) {
         type: 'error',
       });
     }
-  };
+  }, [user, isStylist, showToast, navigation, isFavorited, addToFavorites, removeFromFavorites]);
 
   // Переход к профилю стилиста с выбранным образом
-  const handleBookLook = (stylistId: string, lookId: string) => {
+  const handleBookLook = useCallback((stylistId: string, lookId: string) => {
     navigation.navigate('StylistDetail', {
       id: stylistId,
       selectedLookId: lookId,
     });
-  };
+  }, [navigation]);
 
   // Переход к профилю стилиста
-  const handleStylistPress = (stylistId: string) => {
+  const handleStylistPress = useCallback((stylistId: string) => {
     navigation.navigate('StylistDetail', { id: stylistId });
-  };
+  }, [navigation]);
 
   // Шеринг образа - копирование ссылки в буфер обмена
-  const handleShare = async (look: StylistLook) => {
+  const handleShare = useCallback(async (look: StylistLook) => {
     try {
       if (!look.stylist) {
         showToast({
@@ -150,7 +149,8 @@ export default function FeedScreen({ route }: any) {
       }
 
       // Генерируем ссылку на образ через ленту (для публичного доступа)
-      const shareUrl = `https://looking-web.vercel.app/?stylist=${look.stylist.id}&look=${look.id}`;
+      const baseUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://looking-web.vercel.app';
+      const shareUrl = `${baseUrl}/?stylist=${look.stylist.id}&look=${look.id}`;
       
       // Копируем в буфер обмена
       await Clipboard.setStringAsync(shareUrl);
@@ -168,22 +168,22 @@ export default function FeedScreen({ route }: any) {
         type: 'error',
       });
     }
-  };
+  }, [showToast]);
 
   // Открытие просмотра образа
-  const handleViewLook = (look: StylistLook) => {
+  const handleViewLook = useCallback((look: StylistLook) => {
     setSelectedLookForView(look);
     setShowLookModal(true);
-  };
+  }, []);
 
   // Закрытие модального окна просмотра образа
-  const handleCloseLookModal = () => {
+  const handleCloseLookModal = useCallback(() => {
     setShowLookModal(false);
     setSelectedLookForView(null);
-  };
+  }, []);
 
   // Обработка бронирования из модального окна
-  const handleBookFromModal = () => {
+  const handleBookFromModal = useCallback(() => {
     if (!user) {
       showToast({
         message: 'Войдите, чтобы записаться к стилисту',
@@ -199,10 +199,27 @@ export default function FeedScreen({ route }: any) {
       handleCloseLookModal();
       handleBookLook(selectedLookForView.stylist.id, selectedLookForView.id);
     }
-  };
+  }, [user, selectedLookForView, showToast, navigation, handleCloseLookModal, handleBookLook]);
+
+  // Мемоизация renderItem для FlatList
+  const renderItem = useCallback(({ item }: { item: StylistLook }) => (
+    <LookCard
+      look={item}
+      isFavorited={isFavorited(item.id)}
+      onToggleFavorite={() => handleToggleFavorite(item.id)}
+      onBookLook={() => item.stylist && handleBookLook(item.stylist.id, item.id)}
+      onStylistPress={() => item.stylist && handleStylistPress(item.stylist.id)}
+      onShare={() => handleShare(item)}
+      onViewLook={() => handleViewLook(item)}
+      hideFavorite={isStylist}
+    />
+  ), [isFavorited, handleToggleFavorite, handleBookLook, handleStylistPress, handleShare, handleViewLook, isStylist]);
+
+  // Мемоизация keyExtractor
+  const keyExtractor = useCallback((item: StylistLook) => item.id, []);
 
   // Отображение пустого состояния
-  const renderEmpty = () => {
+  const renderEmpty = useCallback(() => {
     if (loading) return null;
     
     return (
@@ -214,7 +231,7 @@ export default function FeedScreen({ route }: any) {
         </Text>
       </View>
     );
-  };
+  }, [loading]);
 
   // Отображение загрузки
   if (loading && looks.length === 0) {
@@ -232,19 +249,8 @@ export default function FeedScreen({ route }: any) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
         data={looks}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <LookCard
-            look={item}
-            isFavorited={isFavorited(item.id)}
-            onToggleFavorite={() => handleToggleFavorite(item.id)}
-            onBookLook={() => item.stylist && handleBookLook(item.stylist.id, item.id)}
-            onStylistPress={() => item.stylist && handleStylistPress(item.stylist.id)}
-            onShare={() => handleShare(item)}
-            onViewLook={() => handleViewLook(item)}
-            hideFavorite={isStylist}
-          />
-        )}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmpty}
         refreshControl={
@@ -256,6 +262,11 @@ export default function FeedScreen({ route }: any) {
           />
         }
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
       />
 
       {/* Модальное окно просмотра образа */}

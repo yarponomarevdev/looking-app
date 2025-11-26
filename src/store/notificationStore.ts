@@ -89,8 +89,12 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
     // Если ничего не обновилось, но ошибок нет - возможно все уже прочитано
     // или RLS блокирует обновление
-    if ((!data || data.length === 0) && error) {
-        return false;
+    if (!data || data.length === 0) {
+      // Это нормально, если все уведомления уже были прочитаны
+      // Обновляем локальное состояние в любом случае
+      const notifications = get().notifications.map(n => ({ ...n, is_read: true }));
+      set({ notifications, unreadCount: 0 });
+      return true;
     }
     
     // Обновляем локальное состояние

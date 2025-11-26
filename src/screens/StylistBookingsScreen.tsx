@@ -36,10 +36,6 @@ export default function StylistBookingsScreen() {
       
       // Если не нашли в списке, загружаем напрямую из БД
       if (!myStylist && stylists.length > 0) {
-        console.log('Стилист не найден в списке, загружаем из БД...');
-        console.log('User ID:', user.id);
-        console.log('Список stylists user_ids:', stylists.map(s => s.user_id));
-        
         // Пробуем загрузить напрямую из Supabase
         const { data, error } = await supabase
           .from('stylists')
