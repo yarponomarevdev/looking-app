@@ -15,7 +15,6 @@ import { useNotificationStore } from '../store/notificationStore';
 import NotificationBadge from '../components/notifications/NotificationBadge';
 
 import MapScreen from '../screens/MapScreen';
-import StylistListScreen from '../screens/StylistListScreen';
 import StylistDetailScreen from '../screens/StylistDetailScreen';
 import AuthScreen from '../screens/AuthScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -76,20 +75,6 @@ function MainTabs() {
         }} 
       />
       <Tab.Screen 
-        name="List" 
-        component={StylistListScreen} 
-        options={{ 
-          title: 'Список',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons 
-              name={focused ? 'list' : 'list-outline'} 
-              size={size} 
-              color={color} 
-            />
-          ),
-        }} 
-      />
-      <Tab.Screen 
         name="Profile" 
         component={ProfileScreen} 
         options={{ 
@@ -137,7 +122,6 @@ export default function AppNavigator() {
               },
             },
             Map: 'map',
-            List: 'list',
             Profile: 'profile',
           },
         },

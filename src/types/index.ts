@@ -74,7 +74,6 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Map: undefined;
-  List: undefined;
   Feed: undefined; // Новая вкладка для ленты образов
   Profile: undefined;
 };
