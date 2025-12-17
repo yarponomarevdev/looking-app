@@ -211,7 +211,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   booking_time TIME NOT NULL,
   mall TEXT NOT NULL,
   comment TEXT,
-  status TEXT CHECK (status IN ('pending', 'confirmed', 'rejected', 'completed')) DEFAULT 'pending',
+  status TEXT CHECK (status IN ('pending', 'confirmed', 'rejected', 'completed', 'cancelled')) DEFAULT 'pending',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -482,6 +482,47 @@ CREATE TRIGGER on_booking_status_changed
   FOR EACH ROW
   EXECUTE FUNCTION notify_booking_status_changed();
 
+-- Функция для создания уведомления при отмене бронирования клиентом
+CREATE OR REPLACE FUNCTION notify_booking_cancelled()
+RETURNS TRIGGER AS $$
+DECLARE
+  stylist_user_id UUID;
+  client_name TEXT;
+BEGIN
+  IF NEW.status = 'cancelled' AND (OLD.status IS DISTINCT FROM NEW.status) THEN
+    SELECT user_id INTO stylist_user_id
+    FROM stylists
+    WHERE id = NEW.stylist_id;
+
+    IF stylist_user_id IS NULL THEN
+      RAISE WARNING 'Stylist not found for booking %', NEW.id;
+      RETURN NEW;
+    END IF;
+
+    SELECT COALESCE(full_name, 'Клиент') INTO client_name
+    FROM profiles
+    WHERE id = NEW.client_id;
+
+    INSERT INTO notifications (user_id, title, message, type, related_booking_id)
+    VALUES (
+      stylist_user_id,
+      'Клиент отменил встречу',
+      client_name || ' отменил встречу на ' || TO_CHAR(NEW.booking_date, 'DD.MM.YYYY') || ' в ' || TO_CHAR(NEW.booking_time, 'HH24:MI'),
+      'booking_cancelled',
+      NEW.id
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_booking_cancelled ON bookings;
+CREATE TRIGGER on_booking_cancelled
+  AFTER UPDATE ON bookings
+  FOR EACH ROW
+  EXECUTE FUNCTION notify_booking_cancelled();
+
 -- ======================================
 -- Автоотправка push-уведомлений (pg_net + Edge Function)
 -- ======================================
@@ -662,13 +703,13 @@ CREATE POLICY "Users can remove from favorites"
 ALTER TABLE stylist_looks 
 ADD COLUMN IF NOT EXISTS brands TEXT[] DEFAULT '{}';
 
--- Добавляем поле для стоимости в рублях
+-- Добавляем поле для стоимости в свободном текстовом формате
 ALTER TABLE stylist_looks 
-ADD COLUMN IF NOT EXISTS price DECIMAL(10, 2);
+ADD COLUMN IF NOT EXISTS price TEXT;
 
 -- Комментарии для документации
 COMMENT ON COLUMN stylist_looks.brands IS 'Массив брендов одежды, использованных в образе';
-COMMENT ON COLUMN stylist_looks.price IS 'Примерная стоимость образа в рублях';
+COMMENT ON COLUMN stylist_looks.price IS 'Примерная стоимость образа в свободном формате';
 
 -- Индекс для поиска по брендам
 CREATE INDEX IF NOT EXISTS idx_stylist_looks_brands ON stylist_looks USING GIN (brands);
@@ -688,8 +729,52 @@ COMMENT ON COLUMN bookings.look_id IS 'ID образа стилиста, на к
 CREATE INDEX IF NOT EXISTS idx_bookings_look_id ON bookings(look_id);
 
 -- ======================================
+-- Вспомогательные функции для работы с бронированиями
+-- ======================================
+
+-- Функция для получения занятых временных слотов стилиста
+CREATE OR REPLACE FUNCTION get_booked_slots(stylist_id_param UUID, date_param DATE)
+RETURNS TABLE(booking_time TIME) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT b.booking_time
+  FROM public.bookings b
+  WHERE 
+    b.stylist_id = stylist_id_param
+    AND b.booking_date = date_param
+    AND b.status IN ('pending', 'confirmed');
+END;
+$$;
+
+-- Функция для проверки доступности временного слота
+CREATE OR REPLACE FUNCTION is_slot_available(stylist_id_param UUID, date_param DATE, time_param TIME)
+RETURNS BOOLEAN 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  slot_count INT;
+BEGIN
+  SELECT COUNT(*) INTO slot_count
+  FROM public.bookings
+  WHERE 
+    stylist_id = stylist_id_param
+    AND booking_date = date_param
+    AND booking_time = time_param
+    AND status IN ('pending', 'confirmed');
+  
+  RETURN slot_count = 0;
+END;
+$$;
+
+-- ======================================
 -- Готово! 
 -- После выполнения этого скрипта ваша база данных готова к работе
 -- ======================================
 
--- Обновлено: 20.11.2025
+-- Обновлено: 17.12.2024
