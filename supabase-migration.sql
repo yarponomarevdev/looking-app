@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS stylists (
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE,
   bio TEXT,
   portfolio_images TEXT[],
-  status TEXT CHECK (status IN ('active', 'inactive')) DEFAULT 'active',
+  status TEXT CHECK (status IN ('active', 'inactive')) DEFAULT 'inactive',
   latitude DOUBLE PRECISION,
   longitude DOUBLE PRECISION,
   malls TEXT[], -- Массив торговых центров, в которых работает стилист
@@ -91,7 +91,11 @@ CREATE POLICY "Stylists can insert own profile"
 -- ======================================
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
 DECLARE
   user_role TEXT;
 BEGIN
@@ -112,8 +116,8 @@ BEGIN
     INSERT INTO public.stylists (user_id, bio, status, latitude, longitude, malls, brands, social_links, work_schedule)
     VALUES (
       NEW.id,
-      'Расскажите о себе и своем опыте работы стилистом',
-      'active',  -- По умолчанию активен для бронирований
+      '',
+      'inactive',  -- По умолчанию не активен, пока не пройдет модерацию
       55.7558,      -- Координаты центра Москвы по умолчанию
       37.6173,
       ARRAY[]::TEXT[], -- Пустой массив ТЦ (заполнит стилист)
@@ -132,8 +136,13 @@ BEGIN
   END IF;
   
   RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Логируем ошибку для отладки
+  RAISE WARNING 'Error in handle_new_user: %', SQLERRM;
+  -- Возвращаем NEW, чтобы не блокировать создание пользователя
+  RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Триггер на создание пользователя
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
@@ -229,7 +238,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   title TEXT NOT NULL,
   message TEXT NOT NULL,
-  type TEXT CHECK (type IN ('booking_created', 'booking_confirmed', 'booking_rejected')) NOT NULL,
+  type TEXT CHECK (type IN ('booking_created', 'booking_confirmed', 'booking_rejected', 'booking_cancelled')) NOT NULL,
   related_booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,
   is_read BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -239,6 +248,65 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+
+-- ======================================
+-- Таблица push-подписок (PWA)
+-- ======================================
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, endpoint)
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_endpoint ON push_subscriptions(endpoint);
+
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own subscriptions" ON push_subscriptions;
+DROP POLICY IF EXISTS "Users can create own subscriptions" ON push_subscriptions;
+DROP POLICY IF EXISTS "Users can update own subscriptions" ON push_subscriptions;
+DROP POLICY IF EXISTS "Users can delete own subscriptions" ON push_subscriptions;
+
+CREATE POLICY "Users can view own subscriptions"
+  ON push_subscriptions
+  FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create own subscriptions"
+  ON push_subscriptions
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own subscriptions"
+  ON push_subscriptions
+  FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own subscriptions"
+  ON push_subscriptions
+  FOR DELETE
+  USING (auth.uid() = user_id);
+
+CREATE OR REPLACE FUNCTION update_push_subscriptions_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS push_subscriptions_updated_at ON push_subscriptions;
+CREATE TRIGGER push_subscriptions_updated_at
+  BEFORE UPDATE ON push_subscriptions
+  FOR EACH ROW
+  EXECUTE FUNCTION update_push_subscriptions_updated_at();
 
 -- ======================================
 -- RLS политики для bookings
@@ -415,6 +483,67 @@ CREATE TRIGGER on_booking_status_changed
   EXECUTE FUNCTION notify_booking_status_changed();
 
 -- ======================================
+-- Автоотправка push-уведомлений (pg_net + Edge Function)
+-- ======================================
+
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+
+CREATE OR REPLACE FUNCTION send_push_notification_trigger()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  notification_url TEXT;
+  service_role_key TEXT;
+BEGIN
+  notification_url := CASE
+    WHEN NEW.related_booking_id IS NOT NULL THEN '/bookings'
+    WHEN NEW.type IN ('booking_created', 'booking_confirmed', 'booking_rejected', 'booking_cancelled') THEN '/bookings'
+    ELSE '/notifications'
+  END;
+
+  service_role_key := COALESCE(
+    current_setting('app.settings.service_role_key', true),
+    'YOUR_SERVICE_ROLE_KEY'
+  );
+
+  IF service_role_key IS NULL OR service_role_key = '' OR service_role_key = 'YOUR_SERVICE_ROLE_KEY' THEN
+    RAISE WARNING 'Service role key not configured. Skipping push notification.';
+    RETURN NEW;
+  END IF;
+
+  PERFORM net.http_post(
+    url := 'https://bblovvqoltasbbwzrjlb.supabase.co/functions/v1/send-push-notification',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || service_role_key,
+      'apikey', service_role_key
+    ),
+    body := jsonb_build_object(
+      'userId', NEW.user_id::text,
+      'title', NEW.title,
+      'message', NEW.message,
+      'type', NEW.type,
+      'url', notification_url
+    )
+  );
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'Error queuing push notification: %', SQLERRM;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_notification_created_send_push ON notifications;
+CREATE TRIGGER on_notification_created_send_push
+  AFTER INSERT ON notifications
+  FOR EACH ROW
+  EXECUTE FUNCTION send_push_notification_trigger();
+
+-- ======================================
 -- Таблица образов стилистов (stylist looks/outfits)
 -- ======================================
 
@@ -526,7 +655,41 @@ CREATE POLICY "Users can remove from favorites"
   USING (auth.uid() = user_id);
 
 -- ======================================
+-- Добавление брендов и цены к образам
+-- ======================================
+
+-- Добавляем поле для массива брендов
+ALTER TABLE stylist_looks 
+ADD COLUMN IF NOT EXISTS brands TEXT[] DEFAULT '{}';
+
+-- Добавляем поле для стоимости в рублях
+ALTER TABLE stylist_looks 
+ADD COLUMN IF NOT EXISTS price DECIMAL(10, 2);
+
+-- Комментарии для документации
+COMMENT ON COLUMN stylist_looks.brands IS 'Массив брендов одежды, использованных в образе';
+COMMENT ON COLUMN stylist_looks.price IS 'Примерная стоимость образа в рублях';
+
+-- Индекс для поиска по брендам
+CREATE INDEX IF NOT EXISTS idx_stylist_looks_brands ON stylist_looks USING GIN (brands);
+
+-- ======================================
+-- Добавление связи бронирования с образом
+-- ======================================
+
+-- Добавляем опциональное поле для связи бронирования с конкретным образом
+ALTER TABLE bookings 
+ADD COLUMN IF NOT EXISTS look_id UUID REFERENCES stylist_looks(id) ON DELETE SET NULL;
+
+-- Комментарий для документации
+COMMENT ON COLUMN bookings.look_id IS 'ID образа стилиста, на который записался клиент (опционально)';
+
+-- Индекс для поиска бронирований по образу
+CREATE INDEX IF NOT EXISTS idx_bookings_look_id ON bookings(look_id);
+
+-- ======================================
 -- Готово! 
 -- После выполнения этого скрипта ваша база данных готова к работе
 -- ======================================
 
+-- Обновлено: 20.11.2025

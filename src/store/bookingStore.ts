@@ -1,6 +1,6 @@
 /**
  * Store для управления бронированиями
- * Включает создание, получение, обновление бронирований и real-time подписки
+ * Включает создание, получение, обновление бронирований и real-time подписку
  */
 
 import { create } from 'zustand';
@@ -64,6 +64,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           booking_time: bookingData.booking_time,
           mall: bookingData.mall,
           comment: bookingData.comment,
+          look_id: bookingData.look_id, // Добавляем ID образа, если указан
         }])
         .select(`
           *,
@@ -212,7 +213,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   cancelBooking: async (bookingId: string) => {
     const { error } = await supabase
       .from('bookings')
-      .update({ status: 'rejected' })
+      .update({ status: 'cancelled' })
       .eq('id', bookingId);
     
     if (error) {
@@ -222,7 +223,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     
     // Обновляем локальное состояние
     const bookings = get().bookings.map(b => 
-      b.id === bookingId ? { ...b, status: 'rejected' as const } : b
+      b.id === bookingId ? { ...b, status: 'cancelled' as const } : b
     );
     set({ bookings });
     
@@ -294,7 +295,9 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   getAvailableSlots: async (stylistId: string, date: string, workSchedule: WorkSchedule): Promise<TimeSlot[]> => {
     try {
       // Определяем день недели
-      const dateObj = new Date(date + 'T00:00:00');
+      // Парсим дату вручную, чтобы избежать проблем с временными зонами
+      const [year, month, day] = date.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, day);
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const dayName = dayNames[dateObj.getDay()] as keyof WorkSchedule;
       
@@ -304,6 +307,12 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       if (!daySchedule || !daySchedule.enabled) {
         return [];
       }
+      
+      // Проверяем, является ли выбранная дата сегодняшней
+      const today = new Date();
+      const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const selectedDateOnly = new Date(year, month - 1, day);
+      const isToday = todayDateOnly.getTime() === selectedDateOnly.getTime();
       
       // Получаем занятые слоты
       const bookedSlots = await get().getBookedSlots(stylistId, date);
@@ -323,9 +332,22 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         // Проверяем, занят ли слот
         const bookedSlot = bookedSlots.find(slot => slot.time === timeString);
         
+        // Если это сегодняшний день, проверяем, не прошло ли уже это время
+        let isAvailable = !bookedTimes.has(timeString);
+        if (isToday && isAvailable) {
+          const now = new Date();
+          const [slotHour, slotMinute] = timeString.split(':').map(Number);
+          const slotTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), slotHour, slotMinute);
+          
+          // Если время слота уже прошло, помечаем как недоступный
+          if (slotTime <= now) {
+            isAvailable = false;
+          }
+        }
+        
         slots.push({
           time: timeString,
-          available: !bookedTimes.has(timeString),
+          available: isAvailable,
           status: bookedSlot?.status,
         });
         

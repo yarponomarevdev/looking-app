@@ -5,11 +5,11 @@
  */
 
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
 import NotificationBadge from '../components/notifications/NotificationBadge';
@@ -24,6 +24,7 @@ import StylistBookingsScreen from '../screens/StylistBookingsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import EditStylistProfileScreen from '../screens/EditStylistProfileScreen';
 import FeedScreen from '../screens/FeedScreen';
+import CreateLookScreen from '../screens/CreateLookScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -94,7 +95,7 @@ function MainTabs() {
         options={{ 
           title: 'Профиль',
           tabBarIcon: ({ color, size, focused }) => (
-            <View style={{ position: 'relative' }}>
+            <View style={{ position: 'relative', pointerEvents: 'box-none' }}>
               <Ionicons 
                 name={focused ? 'person' : 'person-outline'} 
                 size={size} 
@@ -116,27 +117,123 @@ function MainTabs() {
 export default function AppNavigator() {
   const { user } = useAuthStore();
 
+  // Конфигурация deep linking для шеринга образов
+  const baseUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://looking-web.vercel.app';
+  const linking = React.useMemo(() => ({
+    prefixes: [baseUrl, baseUrl.replace('https://', 'http://'), 'looking-app://'],
+    config: {
+      screens: {
+        Main: {
+          path: '',
+          initialRouteName: 'Feed', // Явно указываем начальный экран
+          screens: {
+            Feed: {
+              // Путь '' позволяет открывать Feed на корневом URL /
+              // А также по прямому пути React Navigation будет обрабатывать /feed
+              path: '',
+              parse: {
+                stylist: (stylist: string) => stylist,
+                look: (look: string) => look,
+              },
+            },
+            Map: 'map',
+            List: 'list',
+            Profile: 'profile',
+          },
+        },
+        StylistDetail: {
+          path: 'stylist/:id',
+          parse: {
+            id: (id: string) => id,
+            selectedLookId: (lookId: string) => lookId,
+          },
+        },
+      },
+    },
+    // Обработчик входящих URL для query параметров
+    getStateFromPath: (path: string, config: any) => {
+      try {
+        // Парсим URL, обрабатывая разные форматы
+        let urlObj: URL;
+        
+        const appBaseUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://looking-web.vercel.app';
+        if (path.startsWith('http')) {
+          urlObj = new URL(path);
+        } else if (path.startsWith('/')) {
+          urlObj = new URL(`${appBaseUrl}${path}`);
+        } else if (path.includes('?')) {
+          // Если это query-параметры без домена
+          urlObj = new URL(`${appBaseUrl}/?${path.split('?')[1]}`);
+        } else {
+          urlObj = new URL(`${appBaseUrl}/${path}`);
+        }
+        
+        const stylistId = urlObj.searchParams.get('stylist');
+        const lookId = urlObj.searchParams.get('look');
+        
+        // Если есть параметры stylist и look, открываем Feed с параметрами
+        // Feed сам обработает эти параметры и откроет модальное окно с образом
+        if (stylistId && lookId) {
+          return {
+            routes: [
+              { 
+                name: 'Main',
+                state: {
+                  routes: [
+                    { 
+                      name: 'Feed',
+                      params: {
+                        stylist: stylistId,
+                        look: lookId,
+                      }
+                    }
+                  ],
+                  index: 0,
+                }
+              },
+            ],
+          };
+        }
+      } catch (error) {
+        console.error('Error parsing deep link:', error);
+      }
+      
+      // Используем стандартную обработку для остальных путей
+      return undefined;
+    },
+  }), [baseUrl]);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer 
+      linking={linking}
+      fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}><ActivityIndicator size="large" color="#6200ee" /></View>}
+    >
       <Stack.Navigator>
-        {!user ? (
-          <Stack.Screen 
-            name="Auth" 
-            component={AuthScreen} 
-            options={{ headerShown: false }} 
-          />
-        ) : (
+        {/* Публичные экраны всегда доступны */}
+        <Stack.Screen 
+          name="Main" 
+          component={MainTabs} 
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="StylistDetail" 
+          component={StylistDetailScreen} 
+          options={{ title: 'Профиль стилиста' }} 
+        />
+        
+        {/* Экран авторизации */}
+        <Stack.Screen 
+          name="Auth" 
+          component={AuthScreen} 
+          options={{ 
+            headerShown: false,
+            presentation: 'modal' // Открывается как модальное окно
+          }} 
+        />
+        
+        {/* Приватные экраны - доступны только авторизованным */}
+        {user && (
           <>
-            <Stack.Screen 
-              name="Main" 
-              component={MainTabs} 
-              options={{ headerShown: false }} 
-            />
-            <Stack.Screen 
-              name="StylistDetail" 
-              component={StylistDetailScreen} 
-              options={{ title: 'Профиль стилиста' }} 
-            />
             <Stack.Screen 
               name="Bookings" 
               component={BookingsScreen} 
@@ -156,6 +253,11 @@ export default function AppNavigator() {
               name="EditStylistProfile" 
               component={EditStylistProfileScreen} 
               options={{ title: 'Редактировать профиль' }} 
+            />
+            <Stack.Screen 
+              name="CreateLook" 
+              component={CreateLookScreen} 
+              options={{ title: 'Создать образ' }} 
             />
           </>
         )}

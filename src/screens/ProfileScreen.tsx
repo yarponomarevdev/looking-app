@@ -4,9 +4,8 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator, Platform, Switch, Modal, FlatList, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useStylistStore } from '../store/stylistStore';
@@ -14,64 +13,132 @@ import { useLookStore } from '../store/lookStore';
 import NotificationBadge from '../components/notifications/NotificationBadge';
 import { supabase } from '../lib/supabase';
 import { StylistLook } from '../types';
+import { useAlert } from '../components/alert/AlertProvider';
+import { MOSCOW_MALLS } from '../constants/malls';
+
+/**
+ * Компонент для неавторизованных пользователей
+ */
+const GuestProfileView = ({ navigation }: any) => (
+  <View style={styles.guestContainer}>
+    <View style={styles.guestContent}>
+      <View style={styles.guestIconContainer}>
+        <Text style={styles.guestIcon}>👤</Text>
+      </View>
+      <Text style={styles.guestTitle}>Добро пожаловать!</Text>
+      <Text style={styles.guestDescription}>
+        Войдите или зарегистрируйтесь, чтобы получить доступ к полному функционалу приложения
+      </Text>
+      
+      <View style={styles.guestFeatures}>
+        <View style={styles.guestFeature}>
+          <Text style={styles.guestFeatureIcon}>❤️</Text>
+          <Text style={styles.guestFeatureText}>Сохраняйте избранные образы</Text>
+        </View>
+        <View style={styles.guestFeature}>
+          <Text style={styles.guestFeatureIcon}>📅</Text>
+          <Text style={styles.guestFeatureText}>Записывайтесь к стилистам</Text>
+        </View>
+        <View style={styles.guestFeature}>
+          <Text style={styles.guestFeatureIcon}>🔔</Text>
+          <Text style={styles.guestFeatureText}>Получайте уведомления о записях</Text>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        style={styles.signInButton}
+        onPress={() => navigation.navigate('Auth')}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.signInButtonText}>Войти или Зарегистрироваться</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, signOut } = useAuthStore();
   const { unreadCount, fetchNotifications } = useNotificationStore();
-  const { fetchStylistByUserId } = useStylistStore();
+  const { fetchStylistByUserId, updateStatus } = useStylistStore();
   const { 
     fetchStylistLooks, 
     createLook, 
     deleteLook, 
-    fetchLooks, 
+    fetchLooks,
     removeFromFavorites 
   } = useLookStore();
+  const { showAlert } = useAlert();
   
-  const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
   
   // Образы стилиста
   const [stylistLooks, setStylistLooks] = useState<StylistLook[]>([]);
   const [stylistId, setStylistId] = useState<string | null>(null);
+  const [stylistProfileBrands, setStylistProfileBrands] = useState<string[]>([]); // Бренды из профиля стилиста
   const [loadingLooks, setLoadingLooks] = useState(false);
+  const [looksInitialized, setLooksInitialized] = useState(false);
   
   // Избранные образы клиента
   const [favoriteLooks, setFavoriteLooks] = useState<StylistLook[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [favoritesInitialized, setFavoritesInitialized] = useState(false);
   
-  // Модальное окно для создания образа
-  const [isLookModalVisible, setIsLookModalVisible] = useState(false);
-  const [newLookTitle, setNewLookTitle] = useState('');
-  const [newLookDescription, setNewLookDescription] = useState('');
-  const [newLookImage, setNewLookImage] = useState<string | null>(null);
+  // Статус стилиста
+  const [stylistStatus, setStylistStatus] = useState<'active' | 'inactive'>('inactive');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [currentMall, setCurrentMall] = useState<string | null>(null);
+  
+  // Модальное окно выбора ТЦ
+  const [showMallModal, setShowMallModal] = useState(false);
+  
+  // Редактирование имени
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [editingName, setEditingName] = useState('');
+  const [savingName, setSavingName] = useState(false);
 
   const isStylist = user?.user_metadata?.role === 'stylist';
 
   /**
    * Загрузка образов стилиста
    */
-  const loadStylistLooks = useCallback(async () => {
+  const loadStylistLooks = useCallback(async (options?: { forceReload?: boolean }) => {
     if (!user) return;
     
-    setLoadingLooks(true);
+    const shouldShowLoader = options?.forceReload || !looksInitialized;
+    if (shouldShowLoader) {
+      setLoadingLooks(true);
+    }
     const stylist = await fetchStylistByUserId(user.id);
     
     if (stylist) {
       setStylistId(stylist.id);
+      // Сохраняем статус стилиста
+      setStylistStatus(stylist.status);
+      // Сохраняем текущий ТЦ (берем первый, если есть)
+      setCurrentMall(stylist.malls && stylist.malls.length > 0 ? stylist.malls[0] : null);
+      // Сохраняем бренды из профиля стилиста для автозаполнения при создании образа
+      setStylistProfileBrands(stylist.brands || []);
       const looks = await fetchStylistLooks(stylist.id);
       setStylistLooks(looks);
     }
     
-    setLoadingLooks(false);
-  }, [user, fetchStylistByUserId, fetchStylistLooks]);
+    setLooksInitialized(true);
+    if (shouldShowLoader) {
+      setLoadingLooks(false);
+    }
+  }, [user, fetchStylistByUserId, fetchStylistLooks, looksInitialized]);
 
   /**
    * Загрузка избранных образов клиента
    */
-  const loadFavoriteLooks = useCallback(async () => {
+  const loadFavoriteLooks = useCallback(async (options?: { forceReload?: boolean }) => {
     if (!user) return;
     
-    setLoadingFavorites(true);
+    const shouldShowLoader = options?.forceReload || !favoritesInitialized;
+    if (shouldShowLoader) {
+      setLoadingFavorites(true);
+    }
     
     try {
       // Получаем ID избранных образов
@@ -94,7 +161,7 @@ export default function ProfileScreen({ navigation }: any) {
       const { data: looks, error: looksError } = await supabase
         .from('stylist_looks')
         .select(`
-          id, title, description, image_url, created_at, updated_at,
+          id, title, description, image_url, brands, price, created_at, updated_at,
           stylist_id,
           stylists:stylist_id (
             id, user_id, bio, status, latitude, longitude, malls, brands, social_links, work_schedule, portfolio_images,
@@ -115,6 +182,8 @@ export default function ProfileScreen({ navigation }: any) {
           title: item.title,
           description: item.description,
           image_url: item.image_url,
+          brands: item.brands || [],
+          price: item.price,
           created_at: item.created_at,
           updated_at: item.updated_at,
           stylist: stylistData ? {
@@ -138,11 +207,14 @@ export default function ProfileScreen({ navigation }: any) {
       setFavoriteLooks(formattedLooks);
     } catch (error: any) {
       console.error('Ошибка загрузки избранного:', error);
-      Alert.alert('Ошибка', 'Не удалось загрузить избранное');
+      showAlert('Ошибка', 'Не удалось загрузить избранное');
     } finally {
-      setLoadingFavorites(false);
+      setFavoritesInitialized(true);
+      if (shouldShowLoader) {
+        setLoadingFavorites(false);
+      }
     }
-  }, [user]);
+  }, [user, favoritesInitialized, showAlert]);
 
   useEffect(() => {
     if (user) {
@@ -150,6 +222,60 @@ export default function ProfileScreen({ navigation }: any) {
       setAvatarUrl(user.user_metadata?.avatar_url || null);
     }
   }, [user]);
+
+  /**
+   * Открытие модального окна редактирования имени
+   */
+  const handleEditName = useCallback(() => {
+    setEditingName(user?.user_metadata?.full_name || '');
+    setShowEditNameModal(true);
+  }, [user]);
+
+  /**
+   * Сохранение имени
+   */
+  const handleSaveName = useCallback(async () => {
+    if (!user || !editingName.trim()) {
+      showAlert('Ошибка', 'Введите имя');
+      return;
+    }
+
+    setSavingName(true);
+    try {
+      // Обновляем имя в таблице profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ full_name: editingName.trim() })
+        .eq('id', user.id);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      // Обновляем метаданные пользователя
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { full_name: editingName.trim() },
+      });
+
+      if (metadataError) {
+        throw metadataError;
+      }
+
+      // Обновляем локальное состояние через перезагрузку сессии
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        useAuthStore.setState({ user: session.user, session });
+      }
+
+      setShowEditNameModal(false);
+      showAlert('Успешно', 'Имя обновлено');
+    } catch (error: any) {
+      console.error('Ошибка обновления имени:', error);
+      showAlert('Ошибка', error.message || 'Не удалось обновить имя');
+    } finally {
+      setSavingName(false);
+    }
+  }, [user, editingName, showAlert]);
 
   // Обновляем данные при фокусе на экране
   useFocusEffect(
@@ -165,210 +291,19 @@ export default function ProfileScreen({ navigation }: any) {
   );
 
   /**
-   * Выбор изображения из галереи
+   * Переход к экрану создания образа
    */
-  const pickImage = async () => {
-    // Запрашиваем разрешение на доступ к галерее
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Необходимо разрешение на доступ к галерее');
-      return;
-    }
-
-    // Открываем выбор изображения
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
+  const navigateToCreateLook = useCallback(() => {
+    navigation.navigate('CreateLook', { 
+      profileBrands: stylistProfileBrands 
     });
-
-    if (!result.canceled && result.assets[0]) {
-      await uploadAvatar(result.assets[0].uri);
-    }
-  };
-
-  /**
-   * Загрузка аватара в Supabase Storage
-   */
-  const uploadAvatar = async (uri: string) => {
-    if (!user) return;
-
-    try {
-      setUploading(true);
-
-      // Создаем FormData для загрузки файла
-      const formData = new FormData();
-      
-      // Получаем расширение файла
-      const fileExt = uri.split('.').pop() || 'jpg';
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      // Создаем объект файла для FormData
-      const file: any = {
-        uri: uri,
-        type: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
-        name: fileName,
-      };
-
-      // Читаем файл как ArrayBuffer для Supabase
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
-
-      // Загружаем в Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, arrayBuffer, {
-          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Получаем публичный URL
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const publicUrl = urlData.publicUrl;
-
-      // Обновляем метаданные пользователя
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url: publicUrl },
-      });
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Обновляем таблицу profiles
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-
-      if (profileError) {
-        console.error('Ошибка обновления profiles:', profileError);
-      }
-
-      setAvatarUrl(publicUrl);
-      Alert.alert('Успешно', 'Аватар обновлен');
-    } catch (error: any) {
-      Alert.alert('Ошибка', error.message);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  /**
-   * Выбор изображения для нового образа
-   */
-  const pickLookImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Необходимо разрешение на доступ к галерее');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.7,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setNewLookImage(result.assets[0].uri);
-    }
-  };
-
-  /**
-   * Загрузка изображения образа в Supabase Storage
-   */
-  const uploadLookImage = async (uri: string): Promise<string | null> => {
-    if (!user) return null;
-
-    try {
-      const fileExt = uri.split('.').pop() || 'jpg';
-      const fileName = `look-${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
-
-      const { error: uploadError } = await supabase.storage
-        .from('looks')
-        .upload(filePath, arrayBuffer, {
-          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data: urlData } = supabase.storage
-        .from('looks')
-        .getPublicUrl(filePath);
-
-      return urlData.publicUrl;
-    } catch (error: any) {
-      Alert.alert('Ошибка', error.message);
-      return null;
-    }
-  };
-
-  /**
-   * Создание нового образа
-   */
-  const handleCreateLook = async () => {
-    if (!stylistId || !newLookImage || !newLookTitle.trim()) {
-      Alert.alert('Ошибка', 'Заполните название и добавьте фото');
-      return;
-    }
-
-    setUploading(true);
-
-    const imageUrl = await uploadLookImage(newLookImage);
-    
-    if (!imageUrl) {
-      setUploading(false);
-      return;
-    }
-
-    const success = await createLook(
-      stylistId,
-      newLookTitle.trim(),
-      newLookDescription.trim(),
-      imageUrl
-    );
-
-    setUploading(false);
-
-    if (success) {
-      await loadStylistLooks();
-      
-      setNewLookTitle('');
-      setNewLookDescription('');
-      setNewLookImage(null);
-      setIsLookModalVisible(false);
-      
-      Alert.alert('Успешно', 'Образ добавлен');
-    } else {
-      Alert.alert('Ошибка', 'Не удалось создать образ');
-    }
-  };
+  }, [navigation, stylistProfileBrands]);
 
   /**
    * Удаление образа
    */
-  const handleDeleteLook = (lookId: string) => {
-    Alert.alert(
+  const handleDeleteLook = useCallback((lookId: string) => {
+    showAlert(
       'Удалить образ?',
       'Это действие нельзя отменить',
       [
@@ -379,84 +314,167 @@ export default function ProfileScreen({ navigation }: any) {
           onPress: async () => {
             const success = await deleteLook(lookId);
             if (success) {
-              await loadStylistLooks();
-              Alert.alert('Успешно', 'Образ удален');
+              await loadStylistLooks({ forceReload: true });
+              showAlert('Успешно', 'Образ удален');
             } else {
-              Alert.alert('Ошибка', 'Не удалось удалить образ');
+              showAlert('Ошибка', 'Не удалось удалить образ');
             }
           },
         },
       ]
     );
-  };
+  }, [showAlert, deleteLook, loadStylistLooks]);
 
   /**
    * Удаление из избранного
    */
-  const handleRemoveFromFavorites = (lookId: string) => {
+  const handleRemoveFromFavorites = useCallback(async (lookId: string) => {
     if (!user) return;
     
-    Alert.alert(
-      'Удалить из избранного?',
-      'Вы всегда можете добавить образ снова',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Удалить',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await removeFromFavorites(user.id, lookId);
-            if (success) {
-              await loadFavoriteLooks();
-            } else {
-              Alert.alert('Ошибка', 'Не удалось удалить из избранного');
-            }
+    // Подтверждение удаления
+    await new Promise<void>((resolve) => {
+      showAlert(
+        'Удалить из избранного?',
+        'Вы всегда можете добавить образ снова',
+        [
+          { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+          {
+            text: 'Удалить',
+            style: 'destructive',
+            onPress: async () => {
+              const success = await removeFromFavorites(user.id, lookId);
+              if (success) {
+                await loadFavoriteLooks({ forceReload: true });
+              } else {
+                showAlert('Ошибка', 'Не удалось удалить из избранного');
+              }
+              resolve();
+            },
           },
-        },
-      ]
-    );
-  };
+        ]
+      );
+    });
+  }, [user, showAlert, removeFromFavorites, loadFavoriteLooks]);
 
   /**
    * Переход к стилисту с выбранным образом
    */
-  const handleBookFavoriteLook = (stylistId: string, lookId: string) => {
+  const handleBookFavoriteLook = useCallback((stylistId: string, lookId: string) => {
     navigation.navigate('StylistDetail', {
       id: stylistId,
       selectedLookId: lookId,
     });
-  };
+  }, [navigation]);
 
-  const handleSignOut = async () => {
-    Alert.alert(
-      'Выход',
-      'Вы уверены, что хотите выйти?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Выйти',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-            } catch (error: any) {
-              Alert.alert('Ошибка', error.message);
-            }
+  /**
+   * Переключение статуса стилиста
+   */
+  const handleToggleStatus = useCallback(async (newStatus: boolean) => {
+    if (!user) return;
+    
+    const status: 'active' | 'inactive' = newStatus ? 'active' : 'inactive';
+    
+    // Если включаем статус "Активен", показываем модальное окно выбора ТЦ
+    if (status === 'active') {
+      setShowMallModal(true);
+      return;
+    }
+    
+    // Если выключаем статус, сразу деактивируем
+    setUpdatingStatus(true);
+    const success = await updateStatus(user.id, status);
+    
+    if (success) {
+      setStylistStatus(status);
+      await fetchLooks();
+      showAlert(
+        'Статус обновлен',
+        'Вы скрыты от клиентов'
+      );
+    } else {
+      showAlert('Ошибка', 'Не удалось обновить статус');
+    }
+    
+    setUpdatingStatus(false);
+  }, [user, updateStatus, showAlert, fetchLooks]);
+  
+  /**
+   * Выбор ТЦ и активация стилиста
+   */
+  const handleSelectMall = useCallback(async (mallName: string) => {
+    if (!user) return;
+    
+    setUpdatingStatus(true);
+    setShowMallModal(false);
+    
+    // Обновляем статус на active и устанавливаем выбранный ТЦ
+    const { fetchStylistByUserId, updateStylist } = useStylistStore.getState();
+    
+    // Сначала обновляем ТЦ
+    const stylistUpdateSuccess = await updateStylist(user.id, {
+      malls: [mallName],
+    });
+    
+    if (!stylistUpdateSuccess) {
+      showAlert('Ошибка', 'Не удалось сохранить торговый центр');
+      setUpdatingStatus(false);
+      return;
+    }
+    
+    // Затем активируем статус
+    const success = await updateStatus(user.id, 'active');
+    
+    if (success) {
+      setStylistStatus('active');
+      setCurrentMall(mallName);
+      await fetchLooks();
+      showAlert(
+        'Статус обновлен',
+        `Вы активны в ${mallName}`
+      );
+    } else {
+      showAlert('Ошибка', 'Не удалось обновить статус');
+    }
+    
+    setUpdatingStatus(false);
+  }, [user, updateStatus, showAlert, fetchLooks]);
+
+  const handleSignOut = useCallback(async () => {
+    // Подтверждение выхода
+    await new Promise<void>((resolve) => {
+      showAlert(
+        'Выход',
+        'Вы уверены, что хотите выйти?',
+        [
+          { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+          {
+            text: 'Выйти',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await signOut();
+              } catch (error: any) {
+                showAlert('Ошибка', error.message);
+              }
+              resolve();
+            },
           },
-        },
-      ]
-    );
-  };
+        ]
+      );
+    });
+  }, [showAlert, signOut]);
 
+  // Если пользователь не авторизован, показываем специальный компонент
+  if (!user) {
+    return <GuestProfileView navigation={navigation} />;
+  }
+  
   return (
+    <>
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         {/* Аватар и информация */}
-        <TouchableOpacity 
-          style={styles.avatarContainer}
-          onPress={pickImage}
-          disabled={uploading}
-        >
+        <View style={styles.avatarContainer}>
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatar} />
           ) : (
@@ -466,29 +484,57 @@ export default function ProfileScreen({ navigation }: any) {
               </Text>
             </View>
           )}
-          
-          {uploading ? (
-            <View style={styles.uploadingOverlay}>
-              <ActivityIndicator color="white" size="large" />
-            </View>
-          ) : (
-            <View style={styles.editBadge}>
-              <Text style={styles.editBadgeText}>✏️</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        </View>
 
-        <Text style={styles.name}>
-          {user?.user_metadata?.full_name || 'Пользователь'}
-        </Text>
-        <Text style={styles.email}>{user?.email}</Text>
+        <View style={styles.nameContainer}>
+          <Text style={styles.name}>
+            {user?.user_metadata?.full_name || 'Пользователь'}
+          </Text>
+          <TouchableOpacity 
+            onPress={handleEditName}
+            style={styles.editNameButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.editNameButtonText}>Изменить</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.infoSection}>
           <Text style={styles.infoLabel}>Роль:</Text>
           <Text style={styles.infoValue}>
-            {isStylist ? 'Стилист' : 'Клиент'}
+            {isStylist ? 'Стилист' : 'Пользователь'}
           </Text>
         </View>
+
+        {/* Статус стилиста с переключателем */}
+        {isStylist && (
+          <View style={styles.statusSection}>
+            <View style={styles.statusRow}>
+              <View style={styles.statusTextContainer}>
+                <Text style={styles.statusLabel}>Статус:</Text>
+                <Text style={[
+                  styles.statusValue, 
+                  { color: stylistStatus === 'active' ? '#4CAF50' : '#999' }
+                ]}>
+                  {stylistStatus === 'active' ? '● Активен' : '● Не активен'}
+                </Text>
+              </View>
+              <Switch
+                value={stylistStatus === 'active'}
+                onValueChange={handleToggleStatus}
+                disabled={updatingStatus}
+                trackColor={{ false: '#d0d0d0', true: '#81c784' }}
+                thumbColor={stylistStatus === 'active' ? '#4CAF50' : '#f4f3f4'}
+                ios_backgroundColor="#d0d0d0"
+              />
+            </View>
+            <Text style={styles.statusHint}>
+              {stylistStatus === 'active' 
+                ? 'Вы видны клиентам и доступны для записи' 
+                : 'Вы скрыты от клиентов'}
+            </Text>
+          </View>
+        )}
 
         {/* Избранное (только для клиентов) */}
         {!isStylist && (
@@ -536,6 +582,7 @@ export default function ProfileScreen({ navigation }: any) {
                       <TouchableOpacity
                         style={styles.deleteLookButtonSmall}
                         onPress={() => handleRemoveFromFavorites(look.id)}
+                        activeOpacity={0.7}
                       >
                         <Text style={styles.deleteLookTextSmall}>✕</Text>
                       </TouchableOpacity>
@@ -563,7 +610,7 @@ export default function ProfileScreen({ navigation }: any) {
               <Text style={styles.sectionTitle}>Мои образы</Text>
               <TouchableOpacity
                 style={styles.addLookButtonSmall}
-                onPress={() => setIsLookModalVisible(true)}
+                onPress={navigateToCreateLook}
               >
                 <Text style={styles.addLookButtonSmallText}>+ Добавить</Text>
               </TouchableOpacity>
@@ -607,7 +654,7 @@ export default function ProfileScreen({ navigation }: any) {
                 </Text>
                 <TouchableOpacity
                   style={styles.addFirstLookButton}
-                  onPress={() => setIsLookModalVisible(true)}
+                  onPress={navigateToCreateLook}
                 >
                   <Text style={styles.addFirstLookButtonText}>
                     Добавить первый образ
@@ -659,88 +706,115 @@ export default function ProfileScreen({ navigation }: any) {
         </View>
 
         {/* Кнопка выхода */}
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <TouchableOpacity 
+          style={styles.signOutButton} 
+          onPress={handleSignOut}
+          activeOpacity={0.8}
+        >
           <Text style={styles.signOutButtonText}>Выйти</Text>
         </TouchableOpacity>
       </View>
+    </ScrollView>
 
-      {/* Модальное окно для добавления образа */}
-      {isLookModalVisible && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Новый образ</Text>
-            
-            {/* Превью изображения */}
+    {/* Модальное окно редактирования имени */}
+    <Modal
+      visible={showEditNameModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowEditNameModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Редактировать имя</Text>
+          </View>
+          
+          <View style={styles.modalBody}>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Введите ваше имя"
+              placeholderTextColor="#999"
+              value={editingName}
+              onChangeText={setEditingName}
+              autoCapitalize="words"
+              autoFocus
+            />
+          </View>
+          
+          <View style={styles.modalActions}>
             <TouchableOpacity
-              style={styles.imagePicker}
-              onPress={pickLookImage}
+              style={[styles.modalButton, styles.modalButtonCancel]}
+              onPress={() => setShowEditNameModal(false)}
             >
-              {newLookImage ? (
-                <Image
-                  source={{ uri: newLookImage }}
-                  style={styles.imagePreview}
-                  resizeMode="cover"
-                />
+              <Text style={styles.modalButtonCancelText}>Отмена</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonSave]}
+              onPress={handleSaveName}
+              disabled={savingName || !editingName.trim()}
+            >
+              {savingName ? (
+                <ActivityIndicator color="white" size="small" />
               ) : (
-                <View style={styles.imagePickerPlaceholder}>
-                  <Text style={styles.imagePickerText}>📷</Text>
-                  <Text style={styles.imagePickerHint}>Выберите фото</Text>
-                </View>
+                <Text style={styles.modalButtonSaveText}>Сохранить</Text>
               )}
             </TouchableOpacity>
-            
-            {/* Название */}
-            <TextInput
-              style={styles.input}
-              placeholder="Название образа"
-              value={newLookTitle}
-              onChangeText={setNewLookTitle}
-              maxLength={100}
-            />
-            
-            {/* Описание */}
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Описание (опционально)"
-              value={newLookDescription}
-              onChangeText={setNewLookDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              maxLength={500}
-            />
-            
-            {/* Кнопки */}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => {
-                  setIsLookModalVisible(false);
-                  setNewLookTitle('');
-                  setNewLookDescription('');
-                  setNewLookImage(null);
-                }}
-                disabled={uploading}
-              >
-                <Text style={styles.modalButtonTextCancel}>Отмена</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSave]}
-                onPress={handleCreateLook}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text style={styles.modalButtonTextSave}>Добавить</Text>
-                )}
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
-      )}
-    </ScrollView>
+      </View>
+    </Modal>
+
+    {/* Модальное окно выбора ТЦ */}
+    <Modal
+      visible={showMallModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowMallModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Выберите торговый центр</Text>
+            <Text style={styles.modalSubtitle}>
+              Вы будете видны клиентам в этом ТЦ
+            </Text>
+          </View>
+          
+          <FlatList
+            data={MOSCOW_MALLS}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.mallItem,
+                  currentMall === item && styles.mallItemSelected
+                ]}
+                onPress={() => handleSelectMall(item)}
+              >
+                <Text style={[
+                  styles.mallItemText,
+                  currentMall === item && styles.mallItemTextSelected
+                ]}>
+                  {item}
+                </Text>
+                {currentMall === item && (
+                  <Text style={styles.mallItemCheck}>✓</Text>
+                )}
+              </TouchableOpacity>
+            )}
+            style={styles.mallList}
+          />
+          
+          <TouchableOpacity
+            style={styles.modalCancelButton}
+            onPress={() => setShowMallModal(false)}
+          >
+            <Text style={styles.modalCancelText}>Отмена</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  </>
   );
 }
 
@@ -752,6 +826,88 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     alignItems: 'center',
+  },
+  // Стили для гостевого экрана
+  guestContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guestContent: {
+    width: '100%',
+    maxWidth: 400,
+    padding: 24,
+    alignItems: 'center',
+  },
+  guestIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#e8e0f7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  guestIcon: {
+    fontSize: 60,
+  },
+  guestTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  guestDescription: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  guestFeatures: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 32,
+  },
+  guestFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  guestFeatureIcon: {
+    fontSize: 24,
+  },
+  guestFeatureText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+    lineHeight: 20,
+    marginLeft: 12,
+  },
+  signInButton: {
+    width: '100%',
+    backgroundColor: '#6200ee',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    }),
+  },
+  signInButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   avatarContainer: {
     marginTop: 40,
@@ -776,37 +932,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-  editBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#6200ee',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'white',
-  },
-  editBadgeText: {
-    fontSize: 14,
-  },
-  uploadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   name: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 0,
   },
   email: {
     fontSize: 16,
@@ -818,7 +947,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 16,
-    marginBottom: 24,
+    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
@@ -829,6 +958,37 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  statusSection: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 24,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statusTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusLabel: {
+    fontSize: 16,
+    color: '#666',
+  },
+  statusValue: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  statusHint: {
+    fontSize: 13,
+    color: '#999',
+    marginTop: 4,
   },
   menuSection: {
     width: '100%',
@@ -866,11 +1026,13 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
+    cursor: 'pointer',
   },
   signOutButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+    userSelect: 'none',
   },
   looksSection: {
     width: '100%',
@@ -926,8 +1088,14 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   deleteLookButtonSmall: {
-    padding: 2,
+    padding: 4,
     marginLeft: 4,
+    minWidth: 24,
+    minHeight: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+    backgroundColor: '#fff5f5',
   },
   deleteLookTextSmall: {
     fontSize: 16,
@@ -975,92 +1143,131 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 2,
   },
+  // Стили для модального окна выбора ТЦ
   modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
   },
-  modal: {
+  modalContent: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    width: '100%',
-    maxWidth: 400,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingTop: 20,
+  },
+  modalHeader: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 16,
     color: '#333',
-    textAlign: 'center',
-  },
-  imagePicker: {
-    width: '100%',
-    height: 250,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 16,
-    backgroundColor: '#f5f5f5',
-  },
-  imagePreview: {
-    width: '100%',
-    height: '100%',
-  },
-  imagePickerPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imagePickerText: {
-    fontSize: 48,
     marginBottom: 8,
   },
-  imagePickerHint: {
+  modalSubtitle: {
     fontSize: 14,
     color: '#666',
   },
-  input: {
+  mallList: {
+    maxHeight: 400,
+  },
+  mallItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  mallItemSelected: {
+    backgroundColor: '#f5f0ff',
+  },
+  mallItemText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  mallItemTextSelected: {
+    color: '#6200ee',
+    fontWeight: '600',
+  },
+  mallItemCheck: {
+    fontSize: 18,
+    color: '#6200ee',
+    fontWeight: 'bold',
+  },
+  modalCancelButton: {
+    padding: 20,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '600',
+  },
+  nameContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  editNameButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#f3e5f5',
+    borderWidth: 1,
+    borderColor: '#e1bee7',
+    marginTop: 8,
+  },
+  editNameButtonText: {
+    fontSize: 14,
+    color: '#6200ee',
+    fontWeight: '600',
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalInput: {
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  modalButtons: {
+  modalActions: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
   modalButton: {
     flex: 1,
-    padding: 14,
-    borderRadius: 8,
+    padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   modalButtonCancel: {
-    backgroundColor: '#f5f5f5',
+    borderRightWidth: 1,
+    borderRightColor: '#f0f0f0',
+  },
+  modalButtonCancelText: {
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '600',
   },
   modalButtonSave: {
     backgroundColor: '#6200ee',
   },
-  modalButtonTextCancel: {
-    color: '#666',
+  modalButtonSaveText: {
     fontSize: 16,
-    fontWeight: '600',
-  },
-  modalButtonTextSave: {
     color: 'white',
-    fontSize: 16,
     fontWeight: '600',
   },
 });

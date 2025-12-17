@@ -11,7 +11,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Switch,
   ActivityIndicator,
   Image,
@@ -22,6 +21,7 @@ import { useStylistStore } from '../store/stylistStore';
 import { MOSCOW_MALLS, POPULAR_BRANDS } from '../constants/malls';
 import { Stylist, WorkSchedule, SocialLinks } from '../types';
 import { supabase } from '../lib/supabase';
+import { useAlert } from '../components/alert/AlertProvider';
 
 const DAYS_OF_WEEK = [
   { key: 'monday' as keyof WorkSchedule, label: 'Понедельник' },
@@ -35,7 +35,8 @@ const DAYS_OF_WEEK = [
 
 export default function EditStylistProfileScreen({ navigation, route }: any) {
   const { user } = useAuthStore();
-  const { fetchStylistByUserId, updateStylist, updateStatus, fetchStylists } = useStylistStore();
+  const { fetchStylistByUserId, updateStylist, fetchStylists } = useStylistStore();
+  const { showAlert } = useAlert();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,16 +45,12 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
   // Основная информация
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [bio, setBio] = useState('');
-  const [status, setStatus] = useState<'active' | 'inactive'>('active');
   
   // Социальные сети
   const [instagram, setInstagram] = useState('');
   const [vk, setVk] = useState('');
   const [telegram, setTelegram] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  
-  // Торговые центры
-  const [selectedMalls, setSelectedMalls] = useState<string[]>([]);
   
   // Бренды
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -78,13 +75,12 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     if (!user) return;
     
     setLoading(true);
-    const stylist = await fetchStylistByUserId(user.id);
+    // Принудительно загружаем свежие данные из БД, игнорируя кэш
+    const stylist = await fetchStylistByUserId(user.id, true);
     
     if (stylist) {
       setAvatarUrl(stylist.avatar_url || user.user_metadata?.avatar_url || null);
       setBio(stylist.bio || '');
-      setStatus(stylist.status);
-      setSelectedMalls(stylist.malls || []);
       setSelectedBrands(stylist.brands || []);
       setWorkSchedule(stylist.work_schedule || workSchedule);
       
@@ -95,6 +91,9 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         setTelegram(stylist.social_links.telegram || '');
         setWhatsapp(stylist.social_links.whatsapp || '');
       }
+    } else {
+      // Также можно установить аватар по умолчанию из профиля auth
+      setAvatarUrl(user.user_metadata?.avatar_url || null);
     }
     
     setLoading(false);
@@ -108,7 +107,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Необходимо разрешение на доступ к галерее');
+      showAlert('Ошибка', 'Необходимо разрешение на доступ к галерее');
       return;
     }
 
@@ -186,19 +185,11 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
       // Перезагружаем данные стилистов для обновления кеша
       await fetchStylists();
       
-      Alert.alert('Успешно', 'Аватар обновлен');
+      showAlert('Успешно', 'Аватар обновлен');
     } catch (error: any) {
-      Alert.alert('Ошибка', error.message);
+      showAlert('Ошибка', error.message);
     } finally {
       setUploading(false);
-    }
-  };
-
-  const toggleMall = (mall: string) => {
-    if (selectedMalls.includes(mall)) {
-      setSelectedMalls(selectedMalls.filter(m => m !== mall));
-    } else {
-      setSelectedMalls([...selectedMalls, mall]);
     }
   };
 
@@ -233,12 +224,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
 
   const handleSave = async () => {
     if (!user) return;
-    
-    // Валидация
-    if (selectedMalls.length === 0) {
-      Alert.alert('Ошибка', 'Выберите хотя бы один торговый центр');
-      return;
-    }
 
     setSaving(true);
 
@@ -250,8 +235,6 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
 
     const updates: Partial<Stylist> = {
       bio,
-      status,
-      malls: selectedMalls,
       brands: selectedBrands,
       social_links,
       work_schedule: workSchedule,
@@ -262,19 +245,14 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
     setSaving(false);
 
     if (success) {
-      Alert.alert('Успешно', 'Профиль обновлен', [
+      showAlert('Успешно', 'Профиль обновлен', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } else {
-      Alert.alert('Ошибка', 'Не удалось обновить профиль');
+      showAlert('Ошибка', 'Не удалось обновить профиль');
     }
   };
 
-  const handleStatusChange = async (newStatus: 'active' | 'inactive') => {
-    if (!user) return;
-    setStatus(newStatus);
-    await updateStatus(user.id, newStatus);
-  };
 
   if (loading) {
     return (
@@ -317,36 +295,13 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <Text style={styles.avatarHint}>Нажмите на фото, чтобы изменить</Text>
       </View>
 
-      {/* Статус */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Текущий статус</Text>
-        <Text style={styles.hint}>Выберите, доступны ли вы для новых записей</Text>
-        <View style={styles.statusButtons}>
-          <TouchableOpacity
-            style={[styles.statusButton, status === 'active' && styles.statusButtonActive]}
-            onPress={() => handleStatusChange('active')}
-          >
-            <Text style={[styles.statusButtonText, status === 'active' && styles.statusButtonTextActive]}>
-              Активен
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.statusButton, status === 'inactive' && styles.statusButtonActive]}
-            onPress={() => handleStatusChange('inactive')}
-          >
-            <Text style={[styles.statusButtonText, status === 'inactive' && styles.statusButtonTextActive]}>
-              Не активен
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {/* Информация о себе */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>О себе</Text>
         <TextInput
           style={styles.textArea}
           placeholder="Расскажите о себе и своем опыте работы стилистом..."
+          placeholderTextColor="#999"
           value={bio}
           onChangeText={setBio}
           multiline
@@ -361,6 +316,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <TextInput
           style={styles.input}
           placeholder="Instagram (без @)"
+          placeholderTextColor="#999"
           value={instagram}
           onChangeText={setInstagram}
           autoCapitalize="none"
@@ -368,6 +324,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <TextInput
           style={styles.input}
           placeholder="VK (ссылка или username)"
+          placeholderTextColor="#999"
           value={vk}
           onChangeText={setVk}
           autoCapitalize="none"
@@ -375,6 +332,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <TextInput
           style={styles.input}
           placeholder="Telegram (с @)"
+          placeholderTextColor="#999"
           value={telegram}
           onChangeText={setTelegram}
           autoCapitalize="none"
@@ -382,29 +340,11 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <TextInput
           style={styles.input}
           placeholder="WhatsApp (номер телефона)"
+          placeholderTextColor="#999"
           value={whatsapp}
           onChangeText={setWhatsapp}
           keyboardType="phone-pad"
         />
-      </View>
-
-      {/* Торговые центры */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Торговые центры</Text>
-        <Text style={styles.hint}>Выберите ТЦ, в которых вы работаете</Text>
-        <View style={styles.tagContainer}>
-          {MOSCOW_MALLS.map((mall) => (
-            <TouchableOpacity
-              key={mall}
-              style={[styles.tag, selectedMalls.includes(mall) && styles.tagSelected]}
-              onPress={() => toggleMall(mall)}
-            >
-              <Text style={[styles.tagText, selectedMalls.includes(mall) && styles.tagTextSelected]}>
-                {mall}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       </View>
 
       {/* Бренды */}
@@ -451,6 +391,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
           <TextInput
             style={styles.customBrandInput}
             placeholder="Добавить свой бренд"
+            placeholderTextColor="#999"
             value={customBrand}
             onChangeText={setCustomBrand}
           />
@@ -479,6 +420,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
                 <TextInput
                   style={styles.timeInput}
                   placeholder="10:00"
+                  placeholderTextColor="#999"
                   value={workSchedule[key].start}
                   onChangeText={(value) => updateDaySchedule(key, 'start', value)}
                 />
@@ -486,6 +428,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
                 <TextInput
                   style={styles.timeInput}
                   placeholder="20:00"
+                  placeholderTextColor="#999"
                   value={workSchedule[key].end}
                   onChangeText={(value) => updateDaySchedule(key, 'end', value)}
                 />
@@ -620,35 +563,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 120,
   },
-  statusButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  statusButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#ddd',
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
-  statusButtonActive: {
-    borderColor: '#6200ee',
-    backgroundColor: '#6200ee',
-  },
-  statusButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  statusButtonTextActive: {
-    color: 'white',
-  },
   tagContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    marginHorizontal: -4,
+    marginVertical: -4,
   },
   tag: {
     paddingVertical: 8,
@@ -657,6 +576,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
+    margin: 4,
   },
   tagSelected: {
     backgroundColor: '#6200ee',
@@ -686,7 +606,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: '#6200ee',
-    gap: 8,
   },
   selectedTagText: {
     fontSize: 14,
@@ -697,14 +616,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     fontWeight: 'bold',
+    marginLeft: 8,
   },
   customBrandContainer: {
-    flexDirection: 'row',
-    gap: 8,
+    flexDirection: 'column',
     marginTop: 12,
+    alignItems: 'stretch',
   },
   customBrandInput: {
-    flex: 1,
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
     padding: 12,
@@ -713,8 +632,13 @@ const styles = StyleSheet.create({
   addButton: {
     backgroundColor: '#6200ee',
     borderRadius: 8,
-    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     justifyContent: 'center',
+    marginTop: 8,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    minWidth: 100,
   },
   addButtonText: {
     color: 'white',
@@ -723,12 +647,15 @@ const styles = StyleSheet.create({
   },
   scheduleRow: {
     marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: 16,
   },
   scheduleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   dayLabel: {
     fontSize: 16,
@@ -738,7 +665,7 @@ const styles = StyleSheet.create({
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   timeInput: {
     flex: 1,
@@ -747,11 +674,13 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     textAlign: 'center',
+    maxWidth: '45%',
   },
   timeSeparator: {
     fontSize: 18,
     color: '#666',
     fontWeight: 'bold',
+    marginHorizontal: 8,
   },
   saveButton: {
     backgroundColor: '#6200ee',

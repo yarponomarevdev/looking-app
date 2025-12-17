@@ -4,7 +4,7 @@
  * и заказа консультации с выбранным образом
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -16,16 +16,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as Clipboard from 'expo-clipboard';
 import { useLookStore } from '../store/lookStore';
 import { useAuthStore } from '../store/authStore';
-import { RootStackParamList } from '../types';
+import { useAlert } from '../components/alert/AlertProvider';
+import { RootStackParamList, StylistLook } from '../types';
 import LookCard from '../components/feed/LookCard';
+import LookDetailModal from '../components/feed/LookDetailModal';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-export default function FeedScreen() {
+export default function FeedScreen({ route }: any) {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuthStore();
+  const { showToast } = useAlert();
+  const isStylist = user?.user_metadata?.role === 'stylist';
   const {
     looks,
     loading,
@@ -36,58 +41,185 @@ export default function FeedScreen() {
     isFavorited,
   } = useLookStore();
 
+  // Параметры из deep link
+  const stylistId = route?.params?.stylist;
+  const lookId = route?.params?.look;
+
+  // Состояние для модального окна просмотра образа
+  const [selectedLookForView, setSelectedLookForView] = useState<StylistLook | null>(null);
+  const [showLookModal, setShowLookModal] = useState(false);
+
   // Загружаем образы и избранное при монтировании
   useEffect(() => {
     fetchLooks();
-    if (user) {
+    if (user && !isStylist) {
       fetchFavorites(user.id);
     }
-  }, [user]);
+  }, [user, isStylist]);
+
+  // Обрабатываем deep link с параметрами стилиста и образа
+  useEffect(() => {
+    if (stylistId && lookId && !loading && looks.length > 0) {
+      // Находим образ по ID
+      const look = looks.find(l => l.id === lookId && l.stylist?.id === stylistId);
+      if (look) {
+        // Небольшая задержка, чтобы экран успел отобразиться
+        const timer = setTimeout(() => {
+          setSelectedLookForView(look);
+          setShowLookModal(true);
+        }, 300);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [stylistId, lookId, loading, looks]);
 
   // Обновляем избранное при возврате на экран
   useFocusEffect(
     useCallback(() => {
-      if (user) {
+      if (user && !isStylist) {
         fetchFavorites(user.id);
       }
-    }, [user])
+    }, [user, isStylist])
   );
 
   // Обработка обновления списка
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     await fetchLooks();
-    if (user) {
+    if (user && !isStylist) {
       await fetchFavorites(user.id);
     }
-  };
+  }, [user, isStylist, fetchLooks, fetchFavorites]);
 
   // Переключение избранного
-  const handleToggleFavorite = async (lookId: string) => {
-    if (!user) return;
-
-    const favorited = isFavorited(lookId);
-    if (favorited) {
-      await removeFromFavorites(user.id, lookId);
-    } else {
-      await addToFavorites(user.id, lookId);
+  const handleToggleFavorite = useCallback(async (lookId: string) => {
+    if (!user) {
+      // Если пользователь не авторизован, предлагаем войти
+      showToast({
+        message: 'Войдите, чтобы добавлять образы в избранное',
+        type: 'info',
+        duration: 3000,
+      });
+      navigation.navigate('Auth');
+      return;
     }
-  };
+
+    // Стилисты не могут добавлять в избранное
+    if (user.user_metadata?.role === 'stylist') {
+      return;
+    }
+
+    // В isFavorited теперь нет смысла, т.к. UI обновляется мгновенно.
+    // Просто вызываем метод и обрабатываем возможную ошибку отката.
+    const success = isFavorited(lookId)
+      ? await removeFromFavorites(user.id, lookId)
+      : await addToFavorites(user.id, lookId);
+
+    if (!success) {
+      // Если optimistic update не удался, показываем ошибку
+      showToast({
+        message: 'Не удалось обновить избранное. Попробуйте снова.',
+        type: 'error',
+      });
+    }
+  }, [user, isStylist, showToast, navigation, isFavorited, addToFavorites, removeFromFavorites]);
 
   // Переход к профилю стилиста с выбранным образом
-  const handleBookLook = (stylistId: string, lookId: string) => {
+  const handleBookLook = useCallback((stylistId: string, lookId: string) => {
     navigation.navigate('StylistDetail', {
       id: stylistId,
       selectedLookId: lookId,
     });
-  };
+  }, [navigation]);
 
   // Переход к профилю стилиста
-  const handleStylistPress = (stylistId: string) => {
+  const handleStylistPress = useCallback((stylistId: string) => {
     navigation.navigate('StylistDetail', { id: stylistId });
-  };
+  }, [navigation]);
+
+  // Шеринг образа - копирование ссылки в буфер обмена
+  const handleShare = useCallback(async (look: StylistLook) => {
+    try {
+      if (!look.stylist) {
+        showToast({
+          message: 'Не удалось получить данные стилиста',
+          type: 'error',
+        });
+        return;
+      }
+
+      // Генерируем ссылку на образ через ленту (для публичного доступа)
+      const baseUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://looking-web.vercel.app';
+      const shareUrl = `${baseUrl}/?stylist=${look.stylist.id}&look=${look.id}`;
+      
+      // Копируем в буфер обмена
+      await Clipboard.setStringAsync(shareUrl);
+      
+      // Показываем успешное уведомление через toast
+      showToast({
+        message: `Ссылка на образ "${look.title}" скопирована!`,
+        type: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Ошибка при копировании ссылки:', error);
+      showToast({
+        message: 'Не удалось скопировать ссылку. Попробуйте снова.',
+        type: 'error',
+      });
+    }
+  }, [showToast]);
+
+  // Открытие просмотра образа
+  const handleViewLook = useCallback((look: StylistLook) => {
+    setSelectedLookForView(look);
+    setShowLookModal(true);
+  }, []);
+
+  // Закрытие модального окна просмотра образа
+  const handleCloseLookModal = useCallback(() => {
+    setShowLookModal(false);
+    setSelectedLookForView(null);
+  }, []);
+
+  // Обработка бронирования из модального окна
+  const handleBookFromModal = useCallback(() => {
+    if (!user) {
+      showToast({
+        message: 'Войдите, чтобы записаться к стилисту',
+        type: 'info',
+        duration: 3000,
+      });
+      handleCloseLookModal();
+      navigation.navigate('Auth');
+      return;
+    }
+
+    if (selectedLookForView?.stylist) {
+      handleCloseLookModal();
+      handleBookLook(selectedLookForView.stylist.id, selectedLookForView.id);
+    }
+  }, [user, selectedLookForView, showToast, navigation, handleCloseLookModal, handleBookLook]);
+
+  // Мемоизация renderItem для FlatList
+  const renderItem = useCallback(({ item }: { item: StylistLook }) => (
+    <LookCard
+      look={item}
+      isFavorited={isFavorited(item.id)}
+      onToggleFavorite={() => handleToggleFavorite(item.id)}
+      onBookLook={() => item.stylist && handleBookLook(item.stylist.id, item.id)}
+      onStylistPress={() => item.stylist && handleStylistPress(item.stylist.id)}
+      onShare={() => handleShare(item)}
+      onViewLook={() => handleViewLook(item)}
+      hideFavorite={isStylist}
+    />
+  ), [isFavorited, handleToggleFavorite, handleBookLook, handleStylistPress, handleShare, handleViewLook, isStylist]);
+
+  // Мемоизация keyExtractor
+  const keyExtractor = useCallback((item: StylistLook) => item.id, []);
 
   // Отображение пустого состояния
-  const renderEmpty = () => {
+  const renderEmpty = useCallback(() => {
     if (loading) return null;
     
     return (
@@ -99,7 +231,7 @@ export default function FeedScreen() {
         </Text>
       </View>
     );
-  };
+  }, [loading]);
 
   // Отображение загрузки
   if (loading && looks.length === 0) {
@@ -117,16 +249,8 @@ export default function FeedScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
         data={looks}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <LookCard
-            look={item}
-            isFavorited={isFavorited(item.id)}
-            onToggleFavorite={() => handleToggleFavorite(item.id)}
-            onBookLook={() => item.stylist && handleBookLook(item.stylist.id, item.id)}
-            onStylistPress={() => item.stylist && handleStylistPress(item.stylist.id)}
-          />
-        )}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmpty}
         refreshControl={
@@ -138,6 +262,29 @@ export default function FeedScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
+      />
+
+      {/* Модальное окно просмотра образа */}
+      <LookDetailModal
+        visible={showLookModal}
+        look={selectedLookForView}
+        isFavorited={selectedLookForView ? isFavorited(selectedLookForView.id) : false}
+        onClose={handleCloseLookModal}
+        onToggleFavorite={() => selectedLookForView && handleToggleFavorite(selectedLookForView.id)}
+        onBookLook={handleBookFromModal}
+        onStylistPress={() => {
+          if (selectedLookForView?.stylist) {
+            handleCloseLookModal();
+            handleStylistPress(selectedLookForView.stylist.id);
+          }
+        }}
+        onShare={() => selectedLookForView && handleShare(selectedLookForView)}
+        hideFavorite={isStylist}
       />
     </SafeAreaView>
   );
@@ -183,4 +330,3 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 });
-

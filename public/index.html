@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#6200ee">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  
+  <title>Looking - Находите стилистов рядом с вами</title>
+  <meta name="description" content="Looking - находите стилистов рядом с вами">
+  
+  <!-- Favicon для всех браузеров -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+  
+  <!-- Apple Touch Icon -->
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  
+  <!-- Android Chrome -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png">
+  
+  <!-- Microsoft Tiles -->
+  <meta name="msapplication-TileColor" content="#6200ee">
+  <meta name="msapplication-TileImage" content="/mstile-150x150.png">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Looking - Находите стилистов рядом с вами">
+  <meta property="og:description" content="Looking - находите стилистов рядом с вами">
+  <meta property="og:image" content="/android-chrome-512x512.png">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Looking - Находите стилистов рядом с вами">
+  <meta name="twitter:description" content="Looking - находите стилистов рядом с вами">
+  <meta name="twitter:image" content="/android-chrome-512x512.png">
+  
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    html, body, #root {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow: hidden;
+    }
+    
+    #root {
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+  <noscript>Вам необходимо включить JavaScript для работы этого приложения.</noscript>
+  <div id="root"></div>
+  
+  <!-- Регистрация Service Worker для PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        let registration;
+        
+        // Функция для проверки версии билда
+        async function checkBuildVersion() {
+          try {
+            // Загружаем текущую версию билда с сервера
+            const response = await fetch('/build-info.json?t=' + Date.now(), { cache: 'no-store' });
+            if (!response.ok) {
+              console.log('[PWA Update] build-info.json не найден, пропускаем проверку');
+              return false;
+            }
+            
+            const buildInfo = await response.json();
+            const currentBuildId = buildInfo.buildId;
+            const vercelEnv = buildInfo.vercelEnv;
+            
+            console.log('[PWA Update] Build ID на сервере:', currentBuildId);
+            console.log('[PWA Update] Vercel Environment:', vercelEnv);
+            console.log('[PWA Update] Vercel Deployment ID:', buildInfo.vercelDeploymentId);
+            
+            // Получаем сохраненный build ID
+            const savedBuildId = localStorage.getItem('pwa-build-id');
+            console.log('[PWA Update] Сохраненный Build ID:', savedBuildId);
+            
+            // Если есть сохраненный ID и он отличается - есть обновление
+            if (savedBuildId && savedBuildId !== currentBuildId) {
+              console.log('[PWA Update] ✅ Обнаружен новый билд!');
+              console.log('[PWA Update] Старый:', savedBuildId);
+              console.log('[PWA Update] Новый:', currentBuildId);
+              
+              // Сохраняем информацию об обновлении
+              localStorage.setItem('pwa-update-available', 'true');
+              localStorage.setItem('pwa-new-build-id', currentBuildId);
+              
+              const event = new CustomEvent('PWA_UPDATE_AVAILABLE', { 
+                bubbles: true,
+                cancelable: true,
+                detail: { oldBuildId: savedBuildId, newBuildId: currentBuildId }
+              });
+              window.dispatchEvent(event);
+              return true;
+            }
+            
+            // Сохраняем текущий build ID
+            if (currentBuildId) {
+              localStorage.setItem('pwa-build-id', currentBuildId);
+              // Для обратной совместимости
+              localStorage.setItem('pwa-build-version', buildInfo.version);
+            }
+            
+            return false;
+          } catch (error) {
+            console.error('[PWA Update] Ошибка при проверке версии билда:', error);
+            return false;
+          }
+        }
+
+        // Функция для проверки и уведомления об обновлении (старая логика через SW)
+        function checkForUpdate(reg) {
+          console.log('[PWA Update] Проверка обновлений через SW...');
+          console.log('[PWA Update] Installing:', reg.installing);
+          console.log('[PWA Update] Waiting:', reg.waiting);
+          console.log('[PWA Update] Active:', reg.active);
+          console.log('[PWA Update] Controller:', navigator.serviceWorker.controller);
+          
+          // Если уже есть waiting worker - показываем уведомление
+          if (reg.waiting && navigator.serviceWorker.controller) {
+            console.log('[PWA Update] ✅ Обнаружен waiting worker - отправляем событие');
+            localStorage.setItem('pwa-update-available', 'true');
+            const event = new CustomEvent('PWA_UPDATE_AVAILABLE', { 
+              bubbles: true,
+              cancelable: true 
+            });
+            window.dispatchEvent(event);
+            console.log('[PWA Update] Событие отправлено');
+            return true;
+          }
+          return false;
+        }
+        
+        // Обработчик изменения состояния installing worker
+        function trackInstalling(worker) {
+          const notifyUpdate = () => {
+            console.log('[PWA Update] ✅ Новая версия установлена - отправляем событие');
+            localStorage.setItem('pwa-update-available', 'true');
+            const event = new CustomEvent('PWA_UPDATE_AVAILABLE', { 
+              bubbles: true,
+              cancelable: true 
+            });
+            window.dispatchEvent(event);
+            console.log('[PWA Update] Событие отправлено');
+          };
+
+          worker.addEventListener('statechange', () => {
+            console.log('[PWA Update] Worker state changed to:', worker.state);
+            // Когда worker переходит в installed или waiting - показываем уведомление
+            if ((worker.state === 'installed' || worker.state === 'waiting') && navigator.serviceWorker.controller) {
+              console.log('[PWA Update] Новая версия установлена (state:', worker.state, ')');
+              notifyUpdate();
+            }
+          });
+          
+          // Также проверяем текущее состояние на случай если оно уже installed/waiting
+          if ((worker.state === 'installed' || worker.state === 'waiting') && navigator.serviceWorker.controller) {
+            console.log('[PWA Update] Worker уже в состоянии', worker.state);
+            notifyUpdate();
+          }
+        }
+
+        navigator.serviceWorker
+          .register('/service-worker.js')
+          .then((reg) => {
+            registration = reg;
+            console.log('[PWA Update] Service Worker зарегистрирован:', registration.scope);
+            
+            // Проверяем версию билда при загрузке (основной способ)
+            checkBuildVersion().then((hasUpdate) => {
+              if (!hasUpdate) {
+                // Если нет обновления по версии, проверяем через SW (fallback)
+                checkForUpdate(reg);
+              }
+            });
+            
+            // Следим за новыми обновлениями через SW (fallback)
+            reg.addEventListener('updatefound', () => {
+              console.log('[PWA Update] Обнаружено обновление через SW!');
+              const newWorker = reg.installing;
+              if (newWorker) {
+                trackInstalling(newWorker);
+              }
+            });
+            
+            // Периодически проверяем версию билда (каждые 30 секунд)
+            // Это нужно чтобы пользователь узнал об обновлении сразу после деплоя
+            setInterval(() => {
+              console.log('[PWA Update] Периодическая проверка версии билда...');
+              checkBuildVersion();
+            }, 30 * 1000); // 30 секунд
+          })
+          .catch((error) => {
+            console.error('[PWA Update] Ошибка регистрации Service Worker:', error);
+          });
+
+        // Обработчик для команды на обновление от приложения
+        window.addEventListener('message', (event) => {
+          if (event.data?.type === 'SKIP_WAITING') {
+            console.log('[PWA Update] Получена команда SKIP_WAITING');
+            if (registration?.waiting) {
+              console.log('[PWA Update] Отправляем SKIP_WAITING в waiting worker');
+              registration.waiting.postMessage({type: 'SKIP_WAITING'});
+            } else {
+              console.log('[PWA Update] Нет waiting worker!');
+            }
+          }
+        });
+
+        // Перезагружаем страницу, когда новый SW берет управление (после skipWaiting)
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('[PWA Update] Controller changed - перезагрузка...');
+          if (!refreshing) {
+            window.location.reload();
+            refreshing = true;
+          }
+        });
+      });
+    }
+  </script>
+</body>
+</html>
+

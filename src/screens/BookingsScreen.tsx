@@ -43,14 +43,14 @@ export default function BookingsScreen({ navigation }: any) {
     b => ['pending', 'confirmed'].includes(b.status)
   );
   const pastBookings = bookings.filter(
-    b => ['completed', 'rejected'].includes(b.status)
+    b => ['completed', 'rejected', 'cancelled'].includes(b.status)
   );
 
   const renderBooking = ({ item }: { item: Booking }) => (
     <BookingCard
       booking={item}
       onPress={() => handleCardPress(item)}
-      showActions={item.status === 'pending'}
+      showActions={item.status === 'pending' || item.status === 'confirmed'}
       onCancel={() => handleCancel(item.id)}
     />
   );

@@ -44,6 +44,8 @@ export default function BookingCard({
     }
   };
 
+  const isStylistView = !!(onConfirm || onReject);
+
   const formatDate = (date: string) => {
     const d = new Date(date);
     return d.toLocaleDateString('ru-RU', { 
@@ -101,28 +103,40 @@ export default function BookingCard({
         )}
 
         {/* Действия */}
-        {showActions && booking.status === 'pending' && (
+        {showActions && (booking.status === 'pending' || booking.status === 'confirmed') && (
           <View style={styles.actions}>
-            {onConfirm && (
+            {booking.status === 'pending' && onConfirm && (
               <TouchableOpacity 
                 style={[styles.actionButton, styles.confirmButton]}
                 onPress={onConfirm}
+                activeOpacity={0.8}
               >
                 <Text style={styles.actionButtonText}>Подтвердить</Text>
               </TouchableOpacity>
             )}
-            {onReject && (
+            {booking.status === 'pending' && onReject && (
               <TouchableOpacity 
                 style={[styles.actionButton, styles.rejectButton]}
                 onPress={onReject}
+                activeOpacity={0.8}
               >
                 <Text style={styles.actionButtonText}>Отклонить</Text>
               </TouchableOpacity>
             )}
-            {onCancel && (
+            {booking.status === 'confirmed' && onCancel && isStylistView && (
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.completeButton]}
+                onPress={onCancel} // Здесь onCancel используется для завершения
+                activeOpacity={0.8}
+              >
+                <Text style={styles.actionButtonText}>Завершить</Text>
+              </TouchableOpacity>
+            )}
+            {onCancel && !isStylistView && (
               <TouchableOpacity 
                 style={[styles.actionButton, styles.cancelButton]}
                 onPress={onCancel}
+                activeOpacity={0.8}
               >
                 <Text style={styles.actionButtonText}>Отменить</Text>
               </TouchableOpacity>
@@ -142,10 +156,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     overflow: 'hidden',
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   statusBar: {
     padding: 8,
@@ -203,13 +214,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: 8,
   },
   actionButton: {
     flex: 1,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginLeft: 8,
   },
   confirmButton: {
     backgroundColor: '#4CAF50',
@@ -219,6 +230,9 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: '#FF9800',
+  },
+  completeButton: {
+    backgroundColor: '#03A9F4', // Голубой цвет для кнопки Завершить
   },
   actionButtonText: {
     color: 'white',

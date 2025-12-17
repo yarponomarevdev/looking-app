@@ -1,12 +1,12 @@
 /**
  * Главный экран приложения с картой стилистов
- * Отображает Яндекс.Карты через WebView с маркерами активных стилистов
+ * Отображает Яндекс.Карты через WebView (мобильные) или iframe (веб)
  * Поддерживает геолокацию пользователя и real-time обновления
+ * Кроссплатформенная версия с поддержкой iOS, Android и Web
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import { View, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStylistStore } from '../store/stylistStore';
@@ -16,14 +16,24 @@ import StylistBottomSheet from '../components/map/StylistBottomSheet';
 import MallStylistsBottomSheet from '../components/map/MallStylistsBottomSheet';
 import BookingModal from '../components/booking/BookingModal';
 
+// Импорты для разных платформ
+let WebView: any;
+let WebViewMessageEvent: any;
+if (Platform.OS !== 'web') {
+  const RNWebView = require('react-native-webview');
+  WebView = RNWebView.WebView;
+  WebViewMessageEvent = RNWebView.WebViewMessageEvent;
+}
+
 export default function MapScreen({ navigation }: any) {
   const { stylists, loading, fetchStylists, subscribeToUpdates } = useStylistStore();
-  const webViewRef = useRef<WebView>(null);
+  const webViewRef = useRef<any>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [selectedStylist, setSelectedStylist] = useState<Stylist | null>(null);
   const [selectedMall, setSelectedMall] = useState<string | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+
 
   // Перезагружаем данные при фокусе на экран
   useFocusEffect(
@@ -47,15 +57,33 @@ export default function MapScreen({ navigation }: any) {
 
   const initializeLocation = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        setUserLocation({
-          lat: location.coords.latitude,
-          lon: location.coords.longitude,
-        });
+      // На веб используем браузерное API геолокации
+      if (Platform.OS === 'web') {
+        if ('geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              setUserLocation({
+                lat: position.coords.latitude,
+                lon: position.coords.longitude,
+              });
+            },
+            (error) => {
+              console.error('Ошибка получения геолокации (веб):', error);
+            }
+          );
+        }
+      } else {
+        // На мобильных используем expo-location
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          setUserLocation({
+            lat: location.coords.latitude,
+            lon: location.coords.longitude,
+          });
+        }
       }
     } catch (error) {
       console.error('Ошибка получения геолокации:', error);
@@ -80,31 +108,73 @@ export default function MapScreen({ navigation }: any) {
       };
     });
 
-    const jsCode = `
-      if (window.updateMallMarkers) {
-        window.updateMallMarkers(${JSON.stringify(mallsData)});
+    if (Platform.OS === 'web') {
+      // На веб отправляем сообщение в iframe
+      const iframe = document.getElementById('yandex-map-iframe') as HTMLIFrameElement;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'updateMallMarkers',
+          data: mallsData
+        }, '*');
       }
-      true;
-    `;
-
-    webViewRef.current?.injectJavaScript(jsCode);
+    } else {
+      // На мобильных используем injectJavaScript
+      const jsCode = `
+        if (window.updateMallMarkers) {
+          window.updateMallMarkers(${JSON.stringify(mallsData)});
+        }
+        true;
+      `;
+      webViewRef.current?.injectJavaScript(jsCode);
+    }
   };
 
-  const handleMessage = (event: WebViewMessageEvent) => {
+  // Обработчик сообщений от WebView (мобильные)
+  const handleMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       
       if (data.type === 'mapLoaded') {
         setMapLoaded(true);
-        console.log('✅ Яндекс.Карты загружены (WebView)');
       } else if (data.type === 'mallMarkerClick') {
-        // Показываем список стилистов торгового центра
         setSelectedMall(data.mallName);
       }
     } catch (error) {
       console.error('Ошибка обработки сообщения:', error);
     }
   };
+
+  // Обработчик сообщений от iframe (веб)
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleWebMessage = (event: MessageEvent) => {
+        try {
+          const data = event.data;
+          
+          if (data.type === 'mapLoaded') {
+            setMapLoaded(true);
+          } else if (data.type === 'mallMarkerClick') {
+            setSelectedMall(data.mallName);
+          }
+        } catch (error) {
+          console.error('Ошибка обработки веб-сообщения:', error);
+        }
+      };
+
+      window.addEventListener('message', handleWebMessage);
+      return () => window.removeEventListener('message', handleWebMessage);
+    }
+  }, []);
+
+  // Дополнительная логика для веб: повторная отправка маркеров после загрузки
+  useEffect(() => {
+    if (Platform.OS === 'web' && mapLoaded && stylists.length > 0) {
+      const timer = setTimeout(() => {
+        updateMallMarkers();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [mapLoaded, stylists]);
 
   const handleCloseBottomSheet = () => {
     setSelectedStylist(null);
@@ -135,7 +205,11 @@ export default function MapScreen({ navigation }: any) {
     setSelectedStylist(null);
   };
 
-  const htmlContent = `
+  // Генерируем HTML контент для карты (работает и в WebView, и в iframe)
+  const getMapHTML = () => {
+    const isWeb = Platform.OS === 'web';
+    
+    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -169,26 +243,32 @@ export default function MapScreen({ navigation }: any) {
         position: { right: 10, top: 100 }
       });
       
-      // Кнопка геолокации - перемещена ниже (слева по центру)
+      // Кнопка геолокации
       map.controls.add('geolocationControl', {
         position: { left: 10, top: 200 }
       });
       
-      // Уведомляем React Native что карта загружена
-      window.ReactNativeWebView.postMessage(JSON.stringify({
+      // Уведомляем родительское окно что карта загружена
+      ${isWeb ? `
+      window.parent.postMessage({
         type: 'mapLoaded'
-      }));
+      }, '*');
+      ` : `
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'mapLoaded'
+        }));
+      }
+      `}
       
       // Функция для обновления маркеров торговых центров
-      // Метки отдельных стилистов убраны - показываем только ТЦ
       window.updateMallMarkers = function(mallsData) {
         // Удаляем старые маркеры ТЦ
         mallMarkers.forEach(marker => map.geoObjects.remove(marker));
         mallMarkers = [];
         
-        // Добавляем новые маркеры ТЦ - стандартные метки Яндекс.Карт
+        // Добавляем новые маркеры ТЦ
         mallsData.forEach(mall => {
-          // Создаем метку торгового центра
           const placemark = new ymaps.Placemark(
             [mall.lat, mall.lon],
             {
@@ -203,18 +283,36 @@ export default function MapScreen({ navigation }: any) {
             }
           );
           
-          // Добавляем обработчик клика на метку
+          // Обработчик клика на метку
           placemark.events.add('click', function() {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
+            ${isWeb ? `
+            window.parent.postMessage({
               type: 'mallMarkerClick',
               mallName: mall.name
-            }));
+            }, '*');
+            ` : `
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'mallMarkerClick',
+                mallName: mall.name
+              }));
+            }
+            `}
           });
           
           map.geoObjects.add(placemark);
           mallMarkers.push(placemark);
         });
       };
+      
+      ${isWeb ? `
+      // Слушаем сообщения от родительского окна (веб)
+      window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'updateMallMarkers') {
+          window.updateMallMarkers(event.data.data);
+        }
+      });
+      ` : ''}
       
       ${userLocation ? `
       // Добавляем маркер текущего местоположения
@@ -231,7 +329,8 @@ export default function MapScreen({ navigation }: any) {
   </script>
 </body>
 </html>
-  `;
+    `;
+  };
 
   if (loading && stylists.length === 0) {
     return (
@@ -241,8 +340,29 @@ export default function MapScreen({ navigation }: any) {
     );
   }
 
-  return (
-    <View style={styles.container}>
+  // Рендер карты для веб-платформы (iframe)
+  const renderWebMap = () => {
+    const htmlContent = getMapHTML();
+
+    return (
+      <iframe
+        id="yandex-map-iframe"
+        srcDoc={htmlContent}
+        style={{
+          width: '100%',
+          height: '100%',
+          border: 'none',
+        }}
+        title="Яндекс.Карты"
+      />
+    );
+  };
+
+  // Рендер карты для мобильных платформ (WebView)
+  const renderMobileMap = () => {
+    const htmlContent = getMapHTML();
+
+    return (
       <WebView
         ref={webViewRef}
         source={{ html: htmlContent }}
@@ -257,6 +377,13 @@ export default function MapScreen({ navigation }: any) {
           </View>
         )}
       />
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Карта - адаптивная для разных платформ */}
+      {Platform.OS === 'web' ? renderWebMap() : renderMobileMap()}
 
       {/* Bottom Sheet для информации о стилисте */}
       <StylistBottomSheet

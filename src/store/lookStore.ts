@@ -20,7 +20,7 @@ interface LookState {
   fetchStylistLooks: (stylistId: string) => Promise<StylistLook[]>;
   
   // Создание нового образа
-  createLook: (stylistId: string, title: string, description: string, imageUrl: string) => Promise<boolean>;
+  createLook: (stylistId: string, title: string, description: string, imageUrl: string, brands: string[], price: string | null) => Promise<boolean>;
   
   // Обновление образа
   updateLook: (lookId: string, title: string, description: string) => Promise<boolean>;
@@ -55,7 +55,7 @@ export const useLookStore = create<LookState>((set, get) => ({
       const { data, error } = await supabase
         .from('stylist_looks')
         .select(`
-          id, title, description, image_url, created_at, updated_at,
+          id, title, description, image_url, brands, price, created_at, updated_at,
           stylist_id,
           stylists:stylist_id (
             id, user_id, bio, status, latitude, longitude, malls, brands, social_links, work_schedule, portfolio_images,
@@ -69,34 +69,39 @@ export const useLookStore = create<LookState>((set, get) => ({
         return;
       }
       
-      // Преобразуем данные в нужный формат
-      const looks: StylistLook[] = (data || []).map((item: any) => {
-        const stylistData = item.stylists;
-        return {
-          id: item.id,
-          stylist_id: item.stylist_id,
-          title: item.title,
-          description: item.description,
-          image_url: item.image_url,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          stylist: stylistData ? {
-            id: stylistData.id,
-            user_id: stylistData.user_id,
-            full_name: stylistData.profiles?.full_name || 'Без имени',
-            avatar_url: stylistData.profiles?.avatar_url,
-            bio: stylistData.bio,
-            status: stylistData.status,
-            latitude: stylistData.latitude,
-            longitude: stylistData.longitude,
-            malls: stylistData.malls || [],
-            brands: stylistData.brands || [],
-            social_links: stylistData.social_links || {},
-            work_schedule: stylistData.work_schedule || {},
-            portfolio_images: stylistData.portfolio_images || [],
-          } : undefined,
-        };
-      });
+      // Преобразуем данные в нужный формат и фильтруем только активных стилистов
+      const looks: StylistLook[] = (data || [])
+        .map((item: any) => {
+          const stylistData = item.stylists;
+          return {
+            id: item.id,
+            stylist_id: item.stylist_id,
+            title: item.title,
+            description: item.description,
+            image_url: item.image_url,
+            brands: item.brands || [],
+            price: item.price ?? null,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            stylist: stylistData ? {
+              id: stylistData.id,
+              user_id: stylistData.user_id,
+              full_name: stylistData.profiles?.full_name || 'Без имени',
+              avatar_url: stylistData.profiles?.avatar_url,
+              bio: stylistData.bio,
+              status: stylistData.status,
+              latitude: stylistData.latitude,
+              longitude: stylistData.longitude,
+              malls: stylistData.malls || [],
+              brands: stylistData.brands || [],
+              social_links: stylistData.social_links || {},
+              work_schedule: stylistData.work_schedule || {},
+              portfolio_images: stylistData.portfolio_images || [],
+            } : undefined,
+          };
+        })
+        // Фильтруем образы: показываем только от активных стилистов
+        .filter(look => look.stylist && look.stylist.status === 'active');
       
       set({ looks, loading: false });
     } catch (error: any) {
@@ -124,8 +129,9 @@ export const useLookStore = create<LookState>((set, get) => ({
     }
   },
   
-  createLook: async (stylistId: string, title: string, description: string, imageUrl: string) => {
+  createLook: async (stylistId: string, title: string, description: string, imageUrl: string, brands: string[], price: string | null) => {
     try {
+      const preparedPrice = price?.trim() || null;
       const { error } = await supabase
         .from('stylist_looks')
         .insert({
@@ -133,6 +139,8 @@ export const useLookStore = create<LookState>((set, get) => ({
           title,
           description,
           image_url: imageUrl,
+          brands: brands || [],
+          price: preparedPrice,
         });
       
       if (error) {
@@ -216,28 +224,38 @@ export const useLookStore = create<LookState>((set, get) => ({
   },
   
   addToFavorites: async (userId: string, lookId: string) => {
+    // Оптимистичное обновление
+    const originalFavorites = new Set(get().favoriteLookIds);
+    const newFavorites = new Set(originalFavorites);
+    newFavorites.add(lookId);
+    set({ favoriteLookIds: newFavorites });
+
     try {
       const { error } = await supabase
         .from('favorite_looks')
         .insert({ user_id: userId, look_id: lookId });
       
       if (error) {
-        set({ error: error.message });
+        // Откат в случае ошибки
+        set({ favoriteLookIds: originalFavorites, error: error.message });
         return false;
       }
       
-      // Добавляем в локальное состояние
-      const favoriteLookIds = new Set(get().favoriteLookIds);
-      favoriteLookIds.add(lookId);
-      set({ favoriteLookIds });
       return true;
     } catch (error: any) {
-      set({ error: error.message });
+      // Откат в случае ошибки
+      set({ favoriteLookIds: originalFavorites, error: error.message });
       return false;
     }
   },
   
   removeFromFavorites: async (userId: string, lookId: string) => {
+    // Оптимистичное обновление
+    const originalFavorites = new Set(get().favoriteLookIds);
+    const newFavorites = new Set(originalFavorites);
+    newFavorites.delete(lookId);
+    set({ favoriteLookIds: newFavorites });
+
     try {
       const { error } = await supabase
         .from('favorite_looks')
@@ -246,17 +264,15 @@ export const useLookStore = create<LookState>((set, get) => ({
         .eq('look_id', lookId);
       
       if (error) {
-        set({ error: error.message });
+        // Откат в случае ошибки
+        set({ favoriteLookIds: originalFavorites, error: error.message });
         return false;
       }
       
-      // Удаляем из локального состояния
-      const favoriteLookIds = new Set(get().favoriteLookIds);
-      favoriteLookIds.delete(lookId);
-      set({ favoriteLookIds });
       return true;
     } catch (error: any) {
-      set({ error: error.message });
+      // Откат в случае ошибки
+      set({ favoriteLookIds: originalFavorites, error: error.message });
       return false;
     }
   },

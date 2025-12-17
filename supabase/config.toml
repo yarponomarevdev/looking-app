@@ -1,0 +1,58 @@
+# Supabase Project Configuration
+# https://supabase.com/docs/guides/cli/config
+
+[project]
+# Уникальный идентификатор проекта (получите из Supabase Dashboard)
+# project_id = "your-project-id"
+
+[api]
+# Порт для API локального сервера
+port = 54321
+# Схемы для экспонирования через API
+schemas = ["public", "storage", "graphql_public"]
+# Дополнительные поисковые пути
+extra_search_path = ["public", "extensions"]
+# Максимальное количество строк в ответе
+max_rows = 1000
+
+[db]
+# Порт для прямого подключения к Postgres
+port = 54322
+# Уровень логирования
+major_version = 15
+
+[studio]
+# Порт для Supabase Studio UI
+port = 54323
+
+[inbucket]
+# Порт для тестового email сервера
+port = 54324
+
+[storage]
+# Путь к файлам хранилища
+file_size_limit = "50MiB"
+
+[auth]
+# Настройки аутентификации
+enable_signup = true
+# URL для перенаправления после email подтверждения
+site_url = "http://localhost:8081"
+# Дополнительные redirect URLs
+additional_redirect_urls = ["http://localhost:8081"]
+# JWT настройки
+jwt_expiry = 3600
+# Провайдеры
+[auth.external.google]
+enabled = false
+[auth.external.github]
+enabled = false
+
+[functions]
+# Директория с Edge Functions
+# По умолчанию: ./supabase/functions
+
+[[functions.send-push-notification]]
+# Настройки для конкретной функции
+verify_jwt = false  # Разрешаем вызов без JWT для внутренних триггеров
+

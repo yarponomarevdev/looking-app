@@ -69,6 +69,7 @@ export type RootStackParamList = {
   StylistBookings: undefined;
   Notifications: undefined;
   EditStylistProfile: undefined;
+  CreateLook: { profileBrands?: string[] }; // Экран создания образа
 };
 
 export type MainTabParamList = {
@@ -86,11 +87,13 @@ export interface Booking {
   booking_time: string;
   mall: string;
   comment?: string;
-  status: 'pending' | 'confirmed' | 'rejected' | 'completed';
+  look_id?: string; // ID образа, на который записался клиент (опционально)
+  status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled';
   created_at: string;
   updated_at: string;
   stylist?: Stylist;
   client?: Profile;
+  look?: StylistLook; // Информация об образе (если бронирование привязано к образу)
 }
 
 export interface Notification {
@@ -98,7 +101,7 @@ export interface Notification {
   user_id: string;
   title: string;
   message: string;
-  type: 'booking_created' | 'booking_confirmed' | 'booking_rejected';
+  type: 'booking_created' | 'booking_confirmed' | 'booking_rejected' | 'booking_cancelled';
   related_booking_id?: string;
   is_read: boolean;
   created_at: string;
@@ -111,6 +114,8 @@ export interface StylistLook {
   title: string;
   description: string | null;
   image_url: string;
+  brands: string[]; // Массив брендов одежды
+  price: string | null; // Стоимость образа в свободном формате
   created_at: string;
   updated_at: string;
   stylist?: Stylist; // Информация о стилисте (для ленты)

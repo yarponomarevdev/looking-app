@@ -4,18 +4,20 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, SectionList, ActivityIndicator, Platform } from 'react-native';
 import { useBookingStore } from '../store/bookingStore';
 import { useAuthStore } from '../store/authStore';
 import { useStylistStore } from '../store/stylistStore';
 import { supabase } from '../lib/supabase';
 import BookingCard from '../components/booking/BookingCard';
 import { Booking } from '../types';
+import { useAlert } from '../components/alert/AlertProvider';
 
 export default function StylistBookingsScreen() {
   const { user } = useAuthStore();
   const { stylists, fetchStylists } = useStylistStore();
   const { bookings, loading, fetchStylistBookings, updateBookingStatus, subscribeToBookings } = useBookingStore();
+  const { showAlert } = useAlert();
   const [stylistId, setStylistId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,10 +36,6 @@ export default function StylistBookingsScreen() {
       
       // Если не нашли в списке, загружаем напрямую из БД
       if (!myStylist && stylists.length > 0) {
-        console.log('Стилист не найден в списке, загружаем из БД...');
-        console.log('User ID:', user.id);
-        console.log('Список stylists user_ids:', stylists.map(s => s.user_id));
-        
         // Пробуем загрузить напрямую из Supabase
         const { data, error } = await supabase
           .from('stylists')
@@ -77,61 +75,73 @@ export default function StylistBookingsScreen() {
   }, [user, stylists]);
 
   const handleConfirm = async (bookingId: string) => {
-    Alert.alert(
-      'Подтвердить встречу',
-      'Вы уверены, что хотите подтвердить эту встречу?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Подтвердить',
-          onPress: async () => {
-            const success = await updateBookingStatus(bookingId, 'confirmed');
-            if (success && stylistId) {
-              fetchStylistBookings(stylistId);
-            }
+    // Подтверждение действия
+    await new Promise<void>((resolve) => {
+      showAlert(
+        'Подтвердить встречу',
+        'Вы уверены, что хотите подтвердить эту встречу?',
+        [
+          { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+          {
+            text: 'Подтвердить',
+            onPress: async () => {
+              const success = await updateBookingStatus(bookingId, 'confirmed');
+              if (success && stylistId) {
+                fetchStylistBookings(stylistId);
+              }
+              resolve();
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    });
   };
 
   const handleReject = async (bookingId: string) => {
-    Alert.alert(
-      'Отклонить запрос',
-      'Вы уверены, что хотите отклонить этот запрос на встречу?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Отклонить',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await updateBookingStatus(bookingId, 'rejected');
-            if (success && stylistId) {
-              fetchStylistBookings(stylistId);
-            }
+    // Подтверждение действия
+    await new Promise<void>((resolve) => {
+      showAlert(
+        'Отклонить запрос',
+        'Вы уверены, что хотите отклонить этот запрос на встречу?',
+        [
+          { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+          {
+            text: 'Отклонить',
+            style: 'destructive',
+            onPress: async () => {
+              const success = await updateBookingStatus(bookingId, 'rejected');
+              if (success && stylistId) {
+                fetchStylistBookings(stylistId);
+              }
+              resolve();
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    });
   };
 
   const handleComplete = async (bookingId: string) => {
-    Alert.alert(
-      'Завершить встречу',
-      'Отметить эту встречу как завершенную?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Завершить',
-          onPress: async () => {
-            const success = await updateBookingStatus(bookingId, 'completed');
-            if (success && stylistId) {
-              fetchStylistBookings(stylistId);
-            }
+    // Подтверждение действия
+    await new Promise<void>((resolve) => {
+      showAlert(
+        'Завершить встречу',
+        'Отметить эту встречу как завершенную?',
+        [
+          { text: 'Отмена', style: 'cancel', onPress: () => resolve() },
+          {
+            text: 'Завершить',
+            onPress: async () => {
+              const success = await updateBookingStatus(bookingId, 'completed');
+              if (success && stylistId) {
+                fetchStylistBookings(stylistId);
+              }
+              resolve();
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    });
   };
 
   // Разделяем бронирования по статусам
@@ -145,6 +155,7 @@ export default function StylistBookingsScreen() {
       showActions={true}
       onConfirm={item.status === 'pending' ? () => handleConfirm(item.id) : undefined}
       onReject={item.status === 'pending' ? () => handleReject(item.id) : undefined}
+      onCancel={item.status === 'confirmed' ? () => handleComplete(item.id) : undefined}
     />
   );
 
@@ -166,33 +177,28 @@ export default function StylistBookingsScreen() {
     );
   }
 
-  if (bookings.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>У вас пока нет запросов на встречи</Text>
-      </View>
-    );
-  }
-
-  const allBookings = [...pendingBookings, ...confirmedBookings, ...pastBookings];
+  const sections = [
+    { title: `Новые запросы (${pendingBookings.length})`, data: pendingBookings },
+    { title: `Предстоящие (${confirmedBookings.length})`, data: confirmedBookings },
+    { title: 'История', data: pastBookings },
+  ].filter(section => section.data.length > 0);
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={allBookings}
+      <SectionList
+        sections={sections}
         renderItem={renderBooking}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <>
-            {pendingBookings.length > 0 && (
-              <View style={styles.header}>
-                <Text style={styles.sectionTitle}>
-                  Новые запросы ({pendingBookings.length})
-                </Text>
-              </View>
-            )}
-          </>
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={styles.header}>
+            <Text style={styles.sectionTitle}>{title}</Text>
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={styles.centerContainer}>
+            <Text style={styles.emptyText}>У вас пока нет запросов на встречи</Text>
+          </View>
         }
       />
     </View>

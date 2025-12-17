@@ -2,6 +2,7 @@
  * Модальное окно для бронирования встречи со стилистом
  * Включает выбор даты, времени, места встречи и комментария
  * Показывает только доступные слоты с учетом графика работы
+ * Поддерживает бронирование как с привязкой к конкретному образу, так и без
  */
 
 import React, { useState, useEffect } from 'react';
@@ -14,7 +15,6 @@ import {
   TextInput, 
   ScrollView,
   Platform,
-  Alert,
   ActivityIndicator
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -24,11 +24,14 @@ import { useBookingStore, TimeSlot } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { useStylistStore } from '../../store/stylistStore';
 import { WorkSchedule } from '../../types';
+import CustomCalendar from './CustomCalendar';
 
 interface BookingModalProps {
   visible: boolean;
   stylistId: string;
   stylistName: string;
+  selectedLookId?: string; // ID выбранного образа (опционально)
+  selectedLookTitle?: string; // Название выбранного образа (опционально)
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -37,6 +40,8 @@ export default function BookingModal({
   visible, 
   stylistId, 
   stylistName,
+  selectedLookId,
+  selectedLookTitle,
   onClose, 
   onSuccess 
 }: BookingModalProps) {
@@ -47,16 +52,23 @@ export default function BookingModal({
   const [date, setDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedMall, setSelectedMall] = useState(MOSCOW_MALLS[0]);
+  const [selectedMall, setSelectedMall] = useState<string>('');
   const [comment, setComment] = useState('');
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [workSchedule, setWorkSchedule] = useState<WorkSchedule | null>(null);
+  const [stylistMalls, setStylistMalls] = useState<string[]>(MOSCOW_MALLS);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Загружаем график работы стилиста при открытии модального окна
   useEffect(() => {
     if (visible && stylistId) {
       loadStylistSchedule();
+      // Сбрасываем состояния уведомлений при открытии
+      setShowSuccess(false);
+      setShowError(false);
     }
   }, [visible, stylistId]);
 
@@ -68,13 +80,42 @@ export default function BookingModal({
   }, [date, workSchedule]);
 
   /**
-   * Загружает график работы стилиста
+   * Форматирует дату в строку YYYY-MM-DD в локальной временной зоне
+   * Избегает проблем с toISOString() который работает в UTC
+   */
+  const formatDateToString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  /**
+   * Загружает график работы стилиста и его торговые центры
    */
   const loadStylistSchedule = async () => {
     try {
       const stylist = await fetchStylistById(stylistId);
-      if (stylist?.work_schedule) {
-        setWorkSchedule(stylist.work_schedule);
+      if (stylist) {
+        // Сохраняем график работы
+        if (stylist.work_schedule) {
+          setWorkSchedule(stylist.work_schedule);
+        }
+        
+        // Сохраняем список торговых центров стилиста
+        if (stylist.malls && stylist.malls.length > 0) {
+          setStylistMalls(stylist.malls);
+          // Устанавливаем первый ТЦ как выбранный по умолчанию
+          if (!selectedMall) {
+            setSelectedMall(stylist.malls[0]);
+          }
+        } else {
+          // Если у стилиста не указаны ТЦ, используем все доступные
+          setStylistMalls(MOSCOW_MALLS);
+          if (!selectedMall) {
+            setSelectedMall(MOSCOW_MALLS[0]);
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading stylist schedule:', error);
@@ -88,7 +129,7 @@ export default function BookingModal({
     if (!workSchedule) return;
     
     setLoadingSlots(true);
-    const bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const bookingDate = formatDateToString(date); // YYYY-MM-DD в локальной временной зоне
     
     try {
       const slots = await getAvailableSlots(stylistId, bookingDate, workSchedule);
@@ -108,17 +149,21 @@ export default function BookingModal({
 
   const handleSubmit = async () => {
     if (!user) {
-      Alert.alert('Ошибка', 'Необходимо войти в систему');
+      setErrorMessage('Необходимо войти в систему');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 5000);
       return;
     }
 
     if (!selectedTime) {
-      Alert.alert('Ошибка', 'Выберите время встречи');
+      setErrorMessage('Выберите время встречи');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 5000);
       return;
     }
 
     // Форматируем дату и время
-    const bookingDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+    const bookingDate = formatDateToString(date); // YYYY-MM-DD в локальной временной зоне
     const bookingTime = selectedTime; // HH:MM
 
     const result = await createBooking({
@@ -128,32 +173,37 @@ export default function BookingModal({
       booking_time: bookingTime,
       mall: selectedMall,
       comment: comment.trim() || undefined,
+      look_id: selectedLookId, // Передаем ID образа, если выбран
     });
 
     if (result) {
-      Alert.alert(
-        'Успешно!', 
-        `Запрос на встречу с ${stylistName} отправлен. Ожидайте подтверждения.`,
-        [{ text: 'OK', onPress: () => {
-          onSuccess?.();
-          onClose();
-        }}]
-      );
+      // Показываем сообщение об успехе внутри модального окна
+      setShowSuccess(true);
       
       // Сброс формы
       setDate(new Date());
       setSelectedTime(null);
       setComment('');
-      setSelectedMall(MOSCOW_MALLS[0]);
+      setSelectedMall(stylistMalls[0] || '');
+      
+      // Автоматически закрываем модальное окно через 2 секунды
+      setTimeout(() => {
+        setShowSuccess(false);
+        onSuccess?.();
+        onClose();
+      }, 2000);
     } else {
-      // Показываем конкретную ошибку из store или общее сообщение
-      Alert.alert(
-        'Ошибка', 
-        bookingError || 'Не удалось создать бронирование. Попробуйте снова.'
-      );
+      // Показываем ошибку внутри модального окна
+      setErrorMessage(bookingError || 'Не удалось создать бронирование. Попробуйте снова.');
+      setShowError(true);
       
       // Обновляем слоты, чтобы показать актуальное состояние
       loadAvailableSlots();
+      
+      // Автоматически скрываем ошибку через 5 секунд
+      setTimeout(() => {
+        setShowError(false);
+      }, 5000);
     }
   };
 
@@ -182,6 +232,29 @@ export default function BookingModal({
     >
       <View style={styles.overlay}>
         <View style={styles.modal}>
+          {/* Уведомление об успехе */}
+          {showSuccess && (
+            <View style={styles.successBanner}>
+              <Text style={styles.successIcon}>✓</Text>
+              <Text style={styles.successText}>
+                Запрос на встречу с {stylistName} отправлен. Ожидайте подтверждения.
+              </Text>
+            </View>
+          )}
+          
+          {/* Уведомление об ошибке */}
+          {showError && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorIcon}>✕</Text>
+              <View style={styles.errorTextContainer}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowError(false)} style={styles.errorCloseButton}>
+                <Text style={styles.errorCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
           {/* Заголовок */}
           <View style={styles.header}>
             <Text style={styles.title}>Записаться к стилисту</Text>
@@ -197,23 +270,52 @@ export default function BookingModal({
               <Text style={styles.stylistName}>{stylistName}</Text>
             </View>
 
+            {/* Информация о выбранном образе */}
+            {selectedLookId && selectedLookTitle && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Выбранный образ</Text>
+                <View style={styles.lookInfoBox}>
+                  <Text style={styles.lookInfoIcon}>✨</Text>
+                  <Text style={styles.lookInfoText}>{selectedLookTitle}</Text>
+                </View>
+                <Text style={styles.lookInfoNote}>
+                  Вы записываетесь на консультацию по этому образу
+                </Text>
+              </View>
+            )}
+
             {/* Выбор даты */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Дата встречи</Text>
-              <TouchableOpacity 
-                style={styles.input} 
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text style={styles.inputText}>📅 {formatDate(date)}</Text>
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={date}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={onDateChange}
-                  minimumDate={new Date()}
+              {Platform.OS === 'web' ? (
+                // Кастомный календарь для веб
+                <CustomCalendar
+                  selectedDate={date}
+                  onDateChange={(selectedDate) => {
+                    setDate(selectedDate);
+                    setSelectedTime(null);
+                  }}
+                  minDate={new Date()}
+                  workSchedule={workSchedule || undefined}
                 />
+              ) : (
+                <>
+                  <TouchableOpacity 
+                    style={styles.input} 
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text style={styles.inputText}>📅 {formatDate(date)}</Text>
+                  </TouchableOpacity>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={date}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={onDateChange}
+                      minimumDate={new Date()}
+                    />
+                  )}
+                </>
               )}
             </View>
 
@@ -274,7 +376,7 @@ export default function BookingModal({
                   onValueChange={(value) => setSelectedMall(value)}
                   style={styles.picker}
                 >
-                  {MOSCOW_MALLS.map((mall) => (
+                  {stylistMalls.map((mall) => (
                     <Picker.Item key={mall} label={mall} value={mall} />
                   ))}
                 </Picker>
@@ -288,7 +390,8 @@ export default function BookingModal({
                 style={styles.textArea}
                 multiline
                 numberOfLines={4}
-                placeholder="Например: Хочу подобрать вечерний образ"
+                placeholder="Хочу белую шапку"
+                placeholderTextColor="#999"
                 value={comment}
                 onChangeText={setComment}
                 maxLength={500}
@@ -403,7 +506,6 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     padding: 20,
-    gap: 12,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
   },
@@ -412,6 +514,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+    marginLeft: 12,
   },
   cancelButton: {
     backgroundColor: '#f5f5f5',
@@ -434,11 +537,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    gap: 10,
   },
   loadingText: {
     fontSize: 14,
     color: '#666',
+    marginLeft: 10,
   },
   noSlotsContainer: {
     padding: 20,
@@ -455,7 +558,8 @@ const styles = StyleSheet.create({
   slotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    marginHorizontal: -4,
+    marginVertical: -4,
   },
   slotButton: {
     paddingVertical: 12,
@@ -466,6 +570,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     minWidth: 80,
     alignItems: 'center',
+    margin: 4,
   },
   slotButtonDisabled: {
     borderColor: '#ddd',
@@ -490,6 +595,83 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#999',
     marginTop: 2,
+  },
+  lookInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3e5f5',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ce93d8',
+  },
+  lookInfoIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  lookInfoText: {
+    fontSize: 16,
+    color: '#6200ee',
+    fontWeight: '600',
+    flex: 1,
+  },
+  lookInfoNote: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
+  
+  // Стили для баннеров уведомлений
+  successBanner: {
+    backgroundColor: '#4caf50',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  successIcon: {
+    fontSize: 24,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  successText: {
+    flex: 1,
+    fontSize: 15,
+    color: 'white',
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  errorBanner: {
+    backgroundColor: '#f44336',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  errorIcon: {
+    fontSize: 24,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  errorTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  errorText: {
+    fontSize: 15,
+    color: 'white',
+    fontWeight: '600',
+  },
+  errorCloseButton: {
+    padding: 4,
+  },
+  errorCloseText: {
+    fontSize: 20,
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 

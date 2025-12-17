@@ -4,10 +4,12 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { Notification } from '../types';
+import { NotificationSettings } from '../components/notifications/NotificationSettings';
 
 export default function NotificationsScreen({ navigation }: any) {
   const { user } = useAuthStore();
@@ -54,6 +56,8 @@ export default function NotificationsScreen({ navigation }: any) {
         return '✅';
       case 'booking_rejected':
         return '❌';
+      case 'booking_cancelled':
+        return '🚫';
       default:
         return '📢';
     }
@@ -102,25 +106,42 @@ export default function NotificationsScreen({ navigation }: any) {
 
   if (loading && notifications.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
-      </View>
+      <SafeAreaView style={styles.container} edges={['top', 'right', 'left']}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#6200ee" />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (notifications.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyIcon}>🔔</Text>
-        <Text style={styles.emptyText}>У вас пока нет уведомлений</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top', 'right', 'left']}>
+        {/* Настройки push-уведомлений (только для веб) - зафиксированы вверху */}
+        {Platform.OS === 'web' && (
+          <View style={styles.settingsContainer}>
+            <NotificationSettings />
+          </View>
+        )}
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyIcon}>🔔</Text>
+          <Text style={styles.emptyText}>У вас пока нет уведомлений</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'right', 'left']}>
+      {/* Настройки push-уведомлений (только для веб) - зафиксированы вверху */}
+      {Platform.OS === 'web' && (
+        <View style={styles.settingsContainer}>
+          <NotificationSettings />
+        </View>
+      )}
+      
       {unreadCount > 0 && (
         <View style={styles.header}>
           <Text style={styles.headerText}>
@@ -136,8 +157,9 @@ export default function NotificationsScreen({ navigation }: any) {
         renderItem={renderNotification}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        style={styles.list}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -146,11 +168,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  settingsContainer: {
+    padding: 16,
+    paddingBottom: 8,
+    backgroundColor: '#f5f5f5',
+    zIndex: 10,
+  },
+  list: {
+    flex: 1,
+  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    paddingTop: 0,
   },
   header: {
     flexDirection: 'row',
@@ -182,10 +214,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     borderRadius: 12,
     elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
   },
   unreadCard: {
     backgroundColor: '#f0e6ff',

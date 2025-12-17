@@ -3,9 +3,9 @@
  * Отображает изображение, название, описание, стилиста и кнопки действий
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { StylistLook } from '../../types';
 
 const { width } = Dimensions.get('window');
@@ -16,51 +16,100 @@ interface LookCardProps {
   onToggleFavorite: () => void;
   onBookLook: () => void;
   onStylistPress: () => void;
+  onShare: () => void; // Функция для шеринга образа
+  onViewLook?: () => void; // Функция для просмотра образа в модальном окне
+  hideFavorite?: boolean; // Скрыть кнопку избранного (для стилистов)
 }
 
-export default function LookCard({
+function LookCard({
   look,
   isFavorited,
   onToggleFavorite,
   onBookLook,
   onStylistPress,
+  onShare,
+  onViewLook,
+  hideFavorite = false,
 }: LookCardProps) {
+  const priceText = useMemo(() => 
+    typeof look.price === 'string' ? look.price.trim() : '', 
+    [look.price]
+  );
+
   return (
     <View style={styles.card}>
       {/* Изображение образа */}
-      <Image
-        source={{ uri: look.image_url }}
-        style={styles.image}
-        resizeMode="cover"
-      />
-      
-      {/* Информация об образе */}
+      <TouchableOpacity
+        activeOpacity={onViewLook ? 0.9 : 1}
+        onPress={onViewLook}
+        disabled={!onViewLook}
+      >
+        <Image
+          source={{ uri: look.image_url }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+      </TouchableOpacity>
       <View style={styles.content}>
-        {/* Заголовок и кнопка избранного */}
+        {/* Заголовок и кнопки действий */}
         <View style={styles.header}>
           <Text style={styles.title} numberOfLines={2}>
             {look.title}
           </Text>
-          <TouchableOpacity
-            onPress={onToggleFavorite}
-            style={styles.favoriteButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name={isFavorited ? 'heart' : 'heart-outline'}
-              size={28}
-              color={isFavorited ? '#ff4757' : '#666'}
-            />
-          </TouchableOpacity>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              onPress={onShare}
+              style={styles.actionButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text>
+                <Ionicons
+                  name="share-outline"
+                  size={24}
+                  color="#666"
+                />
+              </Text>
+            </TouchableOpacity>
+            {!hideFavorite && (
+              <TouchableOpacity
+                onPress={onToggleFavorite}
+                style={styles.actionButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text>
+                  <Ionicons
+                    name={isFavorited ? 'heart' : 'heart-outline'}
+                    size={24}
+                    color={isFavorited ? '#ff4757' : '#666'}
+                  />
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-        
         {/* Описание */}
         {look.description && (
           <Text style={styles.description} numberOfLines={3}>
             {look.description}
           </Text>
         )}
-        
+        {/* Бренды */}
+        {look.brands && look.brands.length > 0 && (
+          <View style={styles.brandsContainer}>
+            {look.brands.map((brand, index) => (
+              <View key={index} style={styles.brandTag}>
+                <Text style={styles.brandText}>{brand}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        {/* Цена */}
+        {priceText.length > 0 && (
+          <View style={styles.priceContainer}>
+            <Text style={styles.priceLabel}>Стоимость:</Text>
+            <Text style={styles.priceValue}>{priceText}</Text>
+          </View>
+        )}
         {/* Информация о стилисте */}
         {look.stylist && (
           <TouchableOpacity
@@ -75,7 +124,9 @@ export default function LookCard({
               />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Ionicons name="person" size={20} color="#999" />
+                <Text>
+                  <Ionicons name="person" size={20} color="#999" />
+                </Text>
               </View>
             )}
             <View style={styles.stylistDetails}>
@@ -88,17 +139,20 @@ export default function LookCard({
                 </Text>
               )}
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+            <Text>
+              <Ionicons name="chevron-forward" size={20} color="#999" />
+            </Text>
           </TouchableOpacity>
         )}
-        
         {/* Кнопка заказа образа */}
         <TouchableOpacity
           style={styles.bookButton}
           onPress={onBookLook}
           activeOpacity={0.8}
         >
-          <Ionicons name="calendar" size={20} color="#fff" />
+          <Text>
+            <Ionicons name="calendar" size={20} color="#fff" />
+          </Text>
           <Text style={styles.bookButtonText}>Заказать образ</Text>
         </TouchableOpacity>
       </View>
@@ -112,15 +166,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    }),
   },
   image: {
     width: '100%',
-    height: width * 1.2, // Соотношение примерно как в Instagram
+    height: width * 0.75, // Более компактное соотношение 4:3
+    maxHeight: 500, // Ограничение для больших экранов
     backgroundColor: '#f0f0f0',
   },
   content: {
@@ -139,14 +198,58 @@ const styles = StyleSheet.create({
     color: '#333',
     marginRight: 12,
   },
-  favoriteButton: {
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
     padding: 4,
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   description: {
     fontSize: 15,
     color: '#666',
     lineHeight: 22,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  brandsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+    marginHorizontal: -4,
+  },
+  brandTag: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: '#f0f0f0',
+    margin: 4,
+  },
+  brandText: {
+    fontSize: 12,
+    color: '#6200ee',
+    fontWeight: '600',
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+  },
+  priceLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginRight: 8,
+  },
+  priceValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '700',
   },
   stylistInfo: {
     flexDirection: 'row',
@@ -187,12 +290,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 8,
-    gap: 8,
   },
   bookButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
   },
+});
+
+// Мемоизация компонента для предотвращения лишних ререндеров
+export default React.memo(LookCard, (prevProps, nextProps) => {
+  // Кастомная функция сравнения для оптимизации
+  return (
+    prevProps.look.id === nextProps.look.id &&
+    prevProps.look.image_url === nextProps.look.image_url &&
+    prevProps.look.title === nextProps.look.title &&
+    prevProps.look.description === nextProps.look.description &&
+    prevProps.look.price === nextProps.look.price &&
+    JSON.stringify(prevProps.look.brands) === JSON.stringify(nextProps.look.brands) &&
+    prevProps.isFavorited === nextProps.isFavorited &&
+    prevProps.hideFavorite === nextProps.hideFavorite &&
+    prevProps.look.stylist?.id === nextProps.look.stylist?.id &&
+    prevProps.look.stylist?.full_name === nextProps.look.stylist?.full_name &&
+    prevProps.look.stylist?.avatar_url === nextProps.look.stylist?.avatar_url
+  );
 });
 
