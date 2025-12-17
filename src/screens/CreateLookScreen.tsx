@@ -15,12 +15,13 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../store/authStore';
 import { useStylistStore } from '../store/stylistStore';
 import { useLookStore } from '../store/lookStore';
 import { supabase } from '../lib/supabase';
 import { POPULAR_BRANDS } from '../constants/malls';
+import { prepareImageForUpload, generateFileName, validateImage, convertImageIfNeeded, getFileExtension, shouldConvertFormat } from '../utils/imageUtils';
+import { launchImageLibraryWithWebSupport, requestMediaLibraryPermissions } from '../utils/imagePickerWeb';
 import { useAlert } from '../components/alert/AlertProvider';
 
 export default function CreateLookScreen({ navigation, route }: any) {
@@ -33,6 +34,8 @@ export default function CreateLookScreen({ navigation, route }: any) {
   const profileBrands = route.params?.profileBrands || [];
 
   const [uploading, setUploading] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [conversionMessage, setConversionMessage] = useState('');
   const [stylistId, setStylistId] = useState<string | null>(null);
   
   // Поля образа
@@ -59,41 +62,107 @@ export default function CreateLookScreen({ navigation, route }: any) {
    * Выбор изображения из галереи
    */
   const pickLookImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      showAlert('Ошибка', 'Необходимо разрешение на доступ к галерее');
-      return;
-    }
+    try {
+      const { status } = await requestMediaLibraryPermissions();
+      
+      if (status !== 'granted') {
+        showAlert('Ошибка', 'Необходимо разрешение на доступ к галерее');
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.8,
-    });
+      const result = await launchImageLibraryWithWebSupport({
+        allowsEditing: true,
+        aspect: [3, 4],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      setLookImage(result.assets[0].uri);
+      if (!result.canceled && result.assets[0]) {
+        const selectedUri = result.assets[0].uri;
+        
+        console.log('Выбрано изображение:', {
+          uri: selectedUri.substring(0, 100) + '...',
+          fileName: result.assets[0].fileName,
+          mimeType: result.assets[0].mimeType,
+        });
+        
+        // Валидация формата изображения
+        const validation = validateImage(selectedUri);
+        
+        console.log('Результат валидации:', validation);
+        
+        if (!validation.isValid) {
+          let errorMessage = validation.error || 'Неподдерживаемый формат файла';
+          
+          if (validation.suggestedFormats) {
+            errorMessage += `\n\nПоддерживаемые форматы:\n${validation.suggestedFormats}`;
+          }
+          
+          console.warn('Валидация не пройдена:', errorMessage);
+          showAlert('Неподдерживаемый формат', errorMessage);
+          return;
+        }
+        
+        console.log('Валидация пройдена, проверяем необходимость конвертации');
+        
+        // Проверяем, нужна ли конвертация
+        const fileExtension = getFileExtension(selectedUri);
+        const needsConversion = shouldConvertFormat(fileExtension);
+        
+        if (needsConversion) {
+          // Конвертируем сразу после выбора
+          setConverting(true);
+          setConversionMessage(`Конвертация ${fileExtension.toUpperCase()} в JPEG...`);
+          
+          try {
+            const { uri: convertedUri } = await convertImageIfNeeded(selectedUri, undefined, undefined, 0.8);
+            setLookImage(convertedUri);
+            setConversionMessage('');
+            setConverting(false);
+            console.log('Изображение успешно сконвертировано');
+          } catch (error: any) {
+            console.error('Ошибка конвертации:', error);
+            setConverting(false);
+            setConversionMessage('');
+            showAlert('Ошибка', 'Не удалось обработать изображение. Попробуйте другой файл.');
+            return;
+          }
+        } else {
+          setLookImage(selectedUri);
+        }
+      }
+    } catch (error: any) {
+      console.error('Ошибка при выборе изображения:', error);
+      showAlert('Ошибка', error.message || 'Не удалось выбрать изображение');
     }
   };
 
   /**
    * Загрузка изображения образа в Supabase Storage
+   * Поддерживает HEIC, JPEG, PNG, WebP и другие форматы
    */
   const uploadLookImage = async (uri: string): Promise<string | null> => {
     try {
-      const fileExt = uri.split('.').pop() || 'jpg';
-      const fileName = `${Date.now()}.${fileExt}`;
+      setConverting(true);
+      
+      // Подготавливаем изображение (конвертируем HEIC в JPEG если нужно)
+      const { arrayBuffer, fileExtension, mimeType } = await prepareImageForUpload(uri, {
+        quality: 0.8,
+        onProgress: (message) => {
+          setConversionMessage(message);
+        },
+      });
+
+      setConversionMessage('Загрузка на сервер...');
+
+      // Генерируем уникальное имя файла
+      const fileName = generateFileName('look', fileExtension);
       const filePath = `${fileName}`;
 
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
-
+      // Загружаем в Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('looks')
         .upload(filePath, arrayBuffer, {
-          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          contentType: mimeType,
           upsert: false,
         });
 
@@ -101,12 +170,18 @@ export default function CreateLookScreen({ navigation, route }: any) {
         throw uploadError;
       }
 
+      // Получаем публичный URL
       const { data: urlData } = supabase.storage
         .from('looks')
         .getPublicUrl(filePath);
 
+      setConverting(false);
+      setConversionMessage('');
+
       return urlData.publicUrl;
     } catch (error: any) {
+      setConverting(false);
+      setConversionMessage('');
       showAlert('Ошибка', error.message);
       return null;
     }
@@ -192,17 +267,26 @@ export default function CreateLookScreen({ navigation, route }: any) {
             style={styles.imagePicker}
             onPress={pickLookImage}
             activeOpacity={0.8}
+            disabled={converting}
           >
             {lookImage ? (
-              <Image
-                source={{ uri: lookImage }}
-                style={styles.imagePreview}
-                resizeMode="cover"
-              />
+              <View style={styles.imagePreviewContainer}>
+                <Image
+                  source={{ uri: lookImage }}
+                  style={styles.imagePreview}
+                  resizeMode="cover"
+                />
+              </View>
             ) : (
               <View style={styles.imagePickerPlaceholder}>
                 <Text style={styles.imagePickerText}>Добавить фото</Text>
                 <Text style={styles.imagePickerHint}>Нажмите для выбора</Text>
+              </View>
+            )}
+            {converting && (
+              <View style={styles.convertingOverlay}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.convertingText}>{conversionMessage || 'Обработка изображения...'}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -329,9 +413,9 @@ export default function CreateLookScreen({ navigation, route }: any) {
             <TouchableOpacity
               style={[styles.button, styles.saveButton]}
               onPress={handleCreateLook}
-              disabled={uploading}
+              disabled={uploading || converting}
             >
-              {uploading ? (
+              {uploading || converting ? (
                 <ActivityIndicator color="white" />
               ) : (
                 <Text style={styles.saveButtonText}>Создать образ</Text>
@@ -371,10 +455,36 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#e0e0e0',
     borderStyle: 'dashed',
+    position: 'relative',
+  },
+  imagePreviewContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
   },
   imagePreview: {
     width: '100%',
     height: '100%',
+  },
+  convertingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+    zIndex: 10,
+  },
+  convertingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   imagePickerPlaceholder: {
     flex: 1,

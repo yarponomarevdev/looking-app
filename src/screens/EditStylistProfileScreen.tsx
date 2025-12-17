@@ -15,12 +15,13 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../store/authStore';
 import { useStylistStore } from '../store/stylistStore';
 import { MOSCOW_MALLS, POPULAR_BRANDS } from '../constants/malls';
 import { Stylist, WorkSchedule, SocialLinks } from '../types';
 import { supabase } from '../lib/supabase';
+import { prepareImageForUpload, generateFileName, validateImage, convertImageIfNeeded, getFileExtension, shouldConvertFormat } from '../utils/imageUtils';
+import { launchImageLibraryWithWebSupport, requestMediaLibraryPermissions } from '../utils/imagePickerWeb';
 import { useAlert } from '../components/alert/AlertProvider';
 
 const DAYS_OF_WEEK = [
@@ -41,6 +42,8 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [conversionMessage, setConversionMessage] = useState('');
   
   // Основная информация
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -103,50 +106,115 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
    * Выбор изображения из галереи
    */
   const pickImage = async () => {
-    // Запрашиваем разрешение на доступ к галерее
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      showAlert('Ошибка', 'Необходимо разрешение на доступ к галерее');
-      return;
-    }
+    try {
+      // Запрашиваем разрешение на доступ к галерее
+      const { status } = await requestMediaLibraryPermissions();
+      
+      if (status !== 'granted') {
+        showAlert('Ошибка', 'Необходимо разрешение на доступ к галерее');
+        return;
+      }
 
-    // Открываем выбор изображения
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
+      // Открываем выбор изображения
+      const result = await launchImageLibraryWithWebSupport({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      await uploadAvatar(result.assets[0].uri);
+      if (!result.canceled && result.assets[0]) {
+        const selectedUri = result.assets[0].uri;
+        
+        console.log('Выбрано изображение:', {
+          uri: selectedUri.substring(0, 100) + '...',
+          fileName: result.assets[0].fileName,
+          mimeType: result.assets[0].mimeType,
+        });
+        
+        // Валидация формата изображения
+        const validation = validateImage(selectedUri);
+        
+        console.log('Результат валидации:', validation);
+        
+        if (!validation.isValid) {
+          let errorMessage = validation.error || 'Неподдерживаемый формат файла';
+          
+          if (validation.suggestedFormats) {
+            errorMessage += `\n\nПоддерживаемые форматы:\n${validation.suggestedFormats}`;
+          }
+          
+          console.warn('Валидация не пройдена:', errorMessage);
+          showAlert('Неподдерживаемый формат', errorMessage);
+          return;
+        }
+        
+        console.log('Валидация пройдена, проверяем необходимость конвертации');
+        
+        // Проверяем, нужна ли конвертация
+        const fileExtension = getFileExtension(selectedUri);
+        const needsConversion = shouldConvertFormat(fileExtension);
+        
+        if (needsConversion) {
+          // Конвертируем сразу после выбора
+          setConverting(true);
+          setConversionMessage(`Конвертация ${fileExtension.toUpperCase()} в JPEG...`);
+          
+          try {
+            const { uri: convertedUri } = await convertImageIfNeeded(selectedUri, 800, 800, 0.7);
+            setConversionMessage('');
+            setConverting(false);
+            console.log('Изображение успешно сконвертировано, загружаем аватар');
+            await uploadAvatar(convertedUri);
+          } catch (error: any) {
+            console.error('Ошибка конвертации:', error);
+            setConverting(false);
+            setConversionMessage('');
+            showAlert('Ошибка', 'Не удалось обработать изображение. Попробуйте другой файл.');
+            return;
+          }
+        } else {
+          console.log('Конвертация не требуется, загружаем аватар');
+          await uploadAvatar(selectedUri);
+        }
+      }
+    } catch (error: any) {
+      console.error('Ошибка при выборе изображения:', error);
+      showAlert('Ошибка', error.message || 'Не удалось выбрать изображение');
     }
   };
 
   /**
    * Загрузка аватара в Supabase Storage
+   * Поддерживает HEIC, JPEG, PNG, WebP и другие форматы
    */
   const uploadAvatar = async (uri: string) => {
     if (!user) return;
 
     try {
       setUploading(true);
+      setConverting(true);
 
-      // Получаем расширение файла
-      const fileExt = uri.split('.').pop() || 'jpg';
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      // Подготавливаем изображение (конвертируем HEIC в JPEG если нужно)
+      const { arrayBuffer, fileExtension, mimeType } = await prepareImageForUpload(uri, {
+        maxWidth: 800,
+        maxHeight: 800,
+        quality: 0.7,
+        onProgress: (message) => {
+          setConversionMessage(message);
+        },
+      });
+
+      setConversionMessage('Загрузка на сервер...');
+
+      // Генерируем уникальное имя файла
+      const fileName = generateFileName(`avatar-${user.id}`, fileExtension);
       const filePath = `${fileName}`;
-
-      // Читаем файл как ArrayBuffer для Supabase
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
 
       // Загружаем в Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, arrayBuffer, {
-          contentType: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+          contentType: mimeType,
           upsert: true,
         });
 
@@ -185,8 +253,12 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
       // Перезагружаем данные стилистов для обновления кеша
       await fetchStylists();
       
+      setConverting(false);
+      setConversionMessage('');
       showAlert('Успешно', 'Аватар обновлен');
     } catch (error: any) {
+      setConverting(false);
+      setConversionMessage('');
       showAlert('Ошибка', error.message);
     } finally {
       setUploading(false);
@@ -270,7 +342,7 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
         <TouchableOpacity 
           style={styles.avatarContainer}
           onPress={pickImage}
-          disabled={uploading}
+          disabled={uploading || converting}
         >
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatar} />
@@ -282,9 +354,12 @@ export default function EditStylistProfileScreen({ navigation, route }: any) {
             </View>
           )}
           
-          {uploading ? (
+          {uploading || converting ? (
             <View style={styles.uploadingOverlay}>
               <ActivityIndicator color="white" size="large" />
+              {conversionMessage ? (
+                <Text style={styles.convertingText}>{conversionMessage}</Text>
+              ) : null}
             </View>
           ) : (
             <View style={styles.editBadge}>
@@ -523,10 +598,18 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  convertingText: {
+    color: '#fff',
+    fontSize: 14,
+    marginTop: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   avatarHint: {
     fontSize: 14,
