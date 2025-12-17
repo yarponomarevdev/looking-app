@@ -224,6 +224,8 @@ export const useLookStore = create<LookState>((set, get) => ({
   },
   
   addToFavorites: async (userId: string, lookId: string) => {
+    console.log('[lookStore] Adding to favorites, userId:', userId, 'lookId:', lookId);
+    
     // Оптимистичное обновление
     const originalFavorites = new Set(get().favoriteLookIds);
     const newFavorites = new Set(originalFavorites);
@@ -236,13 +238,16 @@ export const useLookStore = create<LookState>((set, get) => ({
         .insert({ user_id: userId, look_id: lookId });
       
       if (error) {
+        console.error('[lookStore] Add to favorites error:', error);
         // Откат в случае ошибки
         set({ favoriteLookIds: originalFavorites, error: error.message });
         return false;
       }
       
+      console.log('[lookStore] Successfully added to favorites');
       return true;
     } catch (error: any) {
+      console.error('[lookStore] Add to favorites exception:', error);
       // Откат в случае ошибки
       set({ favoriteLookIds: originalFavorites, error: error.message });
       return false;
@@ -250,6 +255,8 @@ export const useLookStore = create<LookState>((set, get) => ({
   },
   
   removeFromFavorites: async (userId: string, lookId: string) => {
+    console.log('[lookStore] Removing from favorites, userId:', userId, 'lookId:', lookId);
+    
     // Оптимистичное обновление
     const originalFavorites = new Set(get().favoriteLookIds);
     const newFavorites = new Set(originalFavorites);
@@ -264,13 +271,16 @@ export const useLookStore = create<LookState>((set, get) => ({
         .eq('look_id', lookId);
       
       if (error) {
+        console.error('[lookStore] Remove from favorites error:', error);
         // Откат в случае ошибки
         set({ favoriteLookIds: originalFavorites, error: error.message });
         return false;
       }
       
+      console.log('[lookStore] Successfully removed from favorites');
       return true;
     } catch (error: any) {
+      console.error('[lookStore] Remove from favorites exception:', error);
       // Откат в случае ошибки
       set({ favoriteLookIds: originalFavorites, error: error.message });
       return false;

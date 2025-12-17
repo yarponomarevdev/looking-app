@@ -28,7 +28,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function FeedScreen({ route }: any) {
   const navigation = useNavigation<NavigationProp>();
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const { showToast } = useAlert();
   const isStylist = user?.user_metadata?.role === 'stylist';
   const {
@@ -93,7 +93,10 @@ export default function FeedScreen({ route }: any) {
 
   // Переключение избранного
   const handleToggleFavorite = useCallback(async (lookId: string) => {
+    console.log('[FeedScreen] Toggle favorite, user:', user?.id, user?.email);
+    
     if (!user) {
+      console.warn('[FeedScreen] User is null, redirecting to auth');
       // Если пользователь не авторизован, предлагаем войти
       showToast({
         message: 'Войдите, чтобы добавлять образы в избранное',
@@ -106,21 +109,28 @@ export default function FeedScreen({ route }: any) {
 
     // Стилисты не могут добавлять в избранное
     if (user.user_metadata?.role === 'stylist') {
+      console.log('[FeedScreen] Stylist cannot add to favorites');
       return;
     }
 
     // В isFavorited теперь нет смысла, т.к. UI обновляется мгновенно.
     // Просто вызываем метод и обрабатываем возможную ошибку отката.
-    const success = isFavorited(lookId)
+    const isCurrentlyFavorited = isFavorited(lookId);
+    console.log('[FeedScreen] Look is currently favorited:', isCurrentlyFavorited);
+    
+    const success = isCurrentlyFavorited
       ? await removeFromFavorites(user.id, lookId)
       : await addToFavorites(user.id, lookId);
 
     if (!success) {
+      console.error('[FeedScreen] Failed to update favorite');
       // Если optimistic update не удался, показываем ошибку
       showToast({
         message: 'Не удалось обновить избранное. Попробуйте снова.',
         type: 'error',
       });
+    } else {
+      console.log('[FeedScreen] Successfully updated favorite');
     }
   }, [user, isStylist, showToast, navigation, isFavorited, addToFavorites, removeFromFavorites]);
 
